@@ -605,11 +605,15 @@
 
     <script>
         const socket = io();
-        let maxQuantity = { bid: 0, ask: 0 };
-        let lastPrice = 0;
         let priceChange = 0;
+        let lastPrice = 0;
+        let maxQuantity = { bid: 1, ask: 1 };
         let vwap = 0;
         let cumulativeDelta = 0;
+        let previousValidData = {
+            bids: [],
+            asks: []
+        };
         
         function formatPrice(price) {
             return price.toLocaleString('en-IN', {
@@ -965,97 +969,111 @@
                 document.getElementById('ask-ratio-bar').style.width = `${askRatio}%`;
                 document.getElementById('bid-ask-ratio').textContent = `${bidRatio.toFixed(1)}% : ${askRatio.toFixed(1)}%`;
                 
-                // Market sentiment
-                const sentimentValue = calculateSentiment(totalBidQty, totalAskQty);
-                document.getElementById('sentiment-score').textContent = sentimentValue.toFixed(2);
+                // Filter out invalid levels - skip levels with zero or negative prices
+                let validBids = depthData.bids.filter(bid => bid.price > 0);
+                let validAsks = depthData.asks.filter(ask => ask.price > 0);
                 
-                // Update sentiment gauge
-                const gaugeValue = ((sentimentValue + 1) / 2) * 100; // Convert -1..1 to 0..100
-                const sentimentGauge = document.getElementById('sentiment-gauge');
-                sentimentGauge.style.setProperty('--value', gaugeValue);
-                sentimentGauge.textContent = `${gaugeValue.toFixed(0)}%`;
-                
-                let sentimentText = 'Neutral';
-                let sentimentClass = 'badge-info';
-                
-                if (sentimentValue > 0.3) {
-                    sentimentText = 'Bullish';
-                    sentimentClass = 'badge-success';
-                } else if (sentimentValue > 0.1) {
-                    sentimentText = 'Mildly Bullish';
-                    sentimentClass = 'badge-success';
-                } else if (sentimentValue < -0.3) {
-                    sentimentText = 'Bearish';
-                    sentimentClass = 'badge-error';
-                } else if (sentimentValue < -0.1) {
-                    sentimentText = 'Mildly Bearish';
-                    sentimentClass = 'badge-error';
+                // If we don't have any valid bids or asks, keep the previous valid data
+                if (validBids.length === 0 && previousValidData.bids.length > 0) {
+                    validBids = previousValidData.bids;
+                    console.warn("Received zero/invalid bid prices, using previous valid data");
                 }
                 
-                const sentimentBadge = document.getElementById('market-sentiment');
-                sentimentBadge.textContent = sentimentText;
-                sentimentBadge.className = `badge ${sentimentClass} badge-lg`;
-                
-                // Update bid-ask summary
-                let summary = 'Balanced market';
-                if (bidRatio > 65) {
-                    summary = 'Strong buying pressure';
-                } else if (bidRatio > 55) {
-                    summary = 'Moderate buying interest';
-                } else if (askRatio > 65) {
-                    summary = 'Strong selling pressure';
-                } else if (askRatio > 55) {
-                    summary = 'Moderate selling interest';
+                if (validAsks.length === 0 && previousValidData.asks.length > 0) {
+                    validAsks = previousValidData.asks;
+                    console.warn("Received zero/invalid ask prices, using previous valid data");
                 }
-                document.getElementById('bid-ask-summary').textContent = summary;
                 
-                // Calculate market imbalance
-                const imbalance = Math.abs(totalBidQty - totalAskQty) / (total > 0 ? total : 1) * 100;
-                document.getElementById('market-imbalance').textContent = `${imbalance.toFixed(1)}%`;
+                // Store valid data for future use
+                if (validBids.length > 0) previousValidData.bids = [...validBids];
+                if (validAsks.length > 0) previousValidData.asks = [...validAsks];
                 
-                // Calculate max quantities for depth visualization
-                maxQuantity.bid = Math.max(...depthData.bids.map(level => level.quantity), 1);
-                maxQuantity.ask = Math.max(...depthData.asks.map(level => level.quantity), 1);
+                // Market sentiment calculation only if we have valid data
+                if (validBids.length > 0 && validAsks.length > 0) {
+                    const sentimentValue = calculateSentiment(totalBidQty, totalAskQty);
+                    document.getElementById('sentiment-score').textContent = sentimentValue.toFixed(2);
+                    
+                    // Update sentiment gauge
+                    const gaugeValue = ((sentimentValue + 1) / 2) * 100; // Convert -1..1 to 0..100
+                    const sentimentGauge = document.getElementById('sentiment-gauge');
+                    sentimentGauge.style.setProperty('--value', gaugeValue);
+                    sentimentGauge.textContent = `${gaugeValue.toFixed(0)}%`;
+                    
+                    let sentimentText = 'Neutral';
+                    let sentimentClass = 'badge-info';
+                    
+                    if (sentimentValue > 0.3) {
+                        sentimentText = 'Bullish';
+                        sentimentClass = 'badge-success';
+                    } else if (sentimentValue > 0.1) {
+                        sentimentText = 'Mildly Bullish';
+                        sentimentClass = 'badge-success';
+                    } else if (sentimentValue < -0.3) {
+                        sentimentText = 'Bearish';
+                        sentimentClass = 'badge-error';
+                    } else if (sentimentValue < -0.1) {
+                        sentimentText = 'Mildly Bearish';
+                        sentimentClass = 'badge-error';
+                    }
+                    
+                    const sentimentBadge = document.getElementById('market-sentiment');
+                    sentimentBadge.textContent = sentimentText;
+                    sentimentBadge.className = `badge ${sentimentClass} badge-lg`;
+                }
+                
+                // Calculate max quantities for depth visualization, avoid division by zero
+                maxQuantity.bid = Math.max(...validBids.map(level => level.quantity), 1);
+                maxQuantity.ask = Math.max(...validAsks.map(level => level.quantity), 1);
                 
                 // Update best bid and ask for spread calculation
-                if (depthData.bids.length > 0 && depthData.asks.length > 0) {
-                    const bestBid = depthData.bids[0].price;
-                    const bestAsk = depthData.asks[0].price;
-                    const spread = bestAsk - bestBid;
-                    const spreadPips = spread.toFixed(2);
+                if (validBids.length > 0 && validAsks.length > 0) {
+                    const bestBid = validBids[0].price;
+                    const bestAsk = validAsks[0].price;
                     
-                    document.getElementById('bid-ask-spread').textContent = `${spreadPips} (${(spread / bestBid * 100).toFixed(3)}%)`;
-                    
-                    // Update last price (midpoint)
-                    const midPrice = (bestBid + bestAsk) / 2;
-                    if (lastPrice > 0) {
-                        priceChange = midPrice - lastPrice;
+                    // Check for invalid spread (ask should be higher than bid in normal conditions)
+                    if (bestAsk > bestBid) {
+                        const spread = bestAsk - bestBid;
+                        const spreadPips = spread.toFixed(2);
+                        
+                        document.getElementById('bid-ask-spread').textContent = `${spreadPips} (${(spread / bestBid * 100).toFixed(3)}%)`;
+                        
+                        // Update last price (midpoint) - only if we have valid data
+                        const midPrice = (bestBid + bestAsk) / 2;
+                        
+                        // Avoid updating with invalid midPrice
+                        if (midPrice > 0) {
+                            if (lastPrice > 0) {
+                                priceChange = midPrice - lastPrice;
+                            }
+                            lastPrice = midPrice;
+                            
+                            document.getElementById('last-price').textContent = formatPrice(midPrice);
+                            document.getElementById('price-change').textContent = formatPriceChange(priceChange);
+                            document.getElementById('price-change').className = priceChange >= 0 ? 'stat-desc text-xs text-success' : 'stat-desc text-xs text-error';
+                        }
+                    } else {
+                        console.warn("Invalid spread detected: best ask price is not higher than best bid price");
                     }
-                    lastPrice = midPrice;
-                    
-                    document.getElementById('last-price').textContent = formatPrice(midPrice);
-                    document.getElementById('price-change').textContent = formatPriceChange(priceChange);
-                    document.getElementById('price-change').className = priceChange >= 0 ? 'stat-desc text-xs text-success' : 'stat-desc text-xs text-error';
                 }
                 
                 // Calculate VWAP
-                vwap = calculateVWAP(depthData.bids, depthData.asks);
+                vwap = calculateVWAP(validBids, validAsks);
                 document.getElementById('vwap-value').textContent = formatPrice(vwap);
                 
                 // Calculate support and resistance levels
-                const supportResistance = getSupportResistanceLevels(depthData.bids, depthData.asks);
+                const supportResistance = getSupportResistanceLevels(validBids, validAsks);
                 updateSupportResistanceDisplay(supportResistance);
                 
                 // Calculate and update price clusters
-                const priceClusters = calculatePriceClusters(depthData.bids, depthData.asks);
+                const priceClusters = calculatePriceClusters(validBids, validAsks);
                 updatePriceClustersDisplay(priceClusters);
                 
                 // Find large orders
-                const largeOrders = getLargeOrders(depthData.bids, depthData.asks, totalBidQty, totalAskQty);
+                const largeOrders = getLargeOrders(validBids, validAsks, totalBidQty, totalAskQty);
                 updateLargeOrdersDisplay(largeOrders);
                 
                 // Calculate and update depth distribution
-                const depthDistribution = calculateDepthDistribution(depthData.bids, depthData.asks, totalBidQty, totalAskQty);
+                const depthDistribution = calculateDepthDistribution(validBids, validAsks, totalBidQty, totalAskQty);
                 updateDepthDistributionDisplay(depthDistribution);
                 
                 // Get selected depth level and settings
@@ -1070,39 +1088,23 @@
                 let visibleBidQty = 0;
                 let visibleAskQty = 0;
                 
-                // Filter out zero quantity levels if needed
-                let filteredBids = depthData.bids;
-                let filteredAsks = depthData.asks;
-                
-                // Calculate top 10 bids/asks ratio
-                const top10BidQty = filteredBids.slice(0, 10).reduce((sum, bid) => sum + bid.quantity, 0);
-                const top10AskQty = filteredAsks.slice(0, 10).reduce((sum, ask) => sum + ask.quantity, 0);
-                
-                const top10BidRatio = ((top10BidQty / totalBidQty) * 100).toFixed(1);
-                const top10AskRatio = ((top10AskQty / totalAskQty) * 100).toFixed(1);
-                
-                document.getElementById('top-bids-ratio').textContent = `${top10BidRatio}%`;
-                document.getElementById('top-asks-ratio').textContent = `${top10AskRatio}%`;
-                
-                // Calculate bid concentration (standard deviation of bid quantities)
-                const bidMean = totalBidQty / filteredBids.length;
-                const bidVariance = filteredBids.reduce((sum, bid) => sum + Math.pow(bid.quantity - bidMean, 2), 0) / filteredBids.length;
-                const bidStdDev = Math.sqrt(bidVariance);
-                const bidConcentration = (bidStdDev / bidMean * 100).toFixed(1);
-                
-                // Calculate ask distribution
-                const askMean = totalAskQty / filteredAsks.length;
-                const askVariance = filteredAsks.reduce((sum, ask) => sum + Math.pow(ask.quantity - askMean, 2), 0) / filteredAsks.length;
-                const askStdDev = Math.sqrt(askVariance);
-                const askDistribution = (askStdDev / askMean * 100).toFixed(1);
-                
-                document.getElementById('bid-concentration').textContent = `${bidConcentration}%`;
-                document.getElementById('ask-distribution').textContent = `${askDistribution}%`;
+                // Apply zero quantity filtering if enabled
+                let filteredBids = hideZeroQty 
+                    ? validBids.filter(bid => bid.quantity > 0)
+                    : validBids;
+                    
+                let filteredAsks = hideZeroQty 
+                    ? validAsks.filter(ask => ask.quantity > 0)
+                    : validAsks;
+                    
+                // Ensure we have the required number of levels
+                filteredBids = filteredBids.slice(0, maxLevels);
+                filteredAsks = filteredAsks.slice(0, maxLevels);
                 
                 // Update asks (sell orders)
                 const asksBody = document.getElementById('asks');
                 asksBody.innerHTML = '';
-                filteredAsks.slice(0, maxLevels).forEach((level, index) => {
+                filteredAsks.forEach((level, index) => {
                     const row = document.createElement('tr');
                     row.classList.add('ask-row');
                     visibleAskQty += level.quantity;
@@ -1130,7 +1132,7 @@
                 // Update bids (buy orders)
                 const bidsBody = document.getElementById('bids');
                 bidsBody.innerHTML = '';
-                filteredBids.slice(0, maxLevels).forEach((level, index) => {
+                filteredBids.forEach((level, index) => {
                     const row = document.createElement('tr');
                     row.classList.add('bid-row');
                     visibleBidQty += level.quantity;
