@@ -42,7 +42,3 @@ env/
 .env.test.local
 .env.production.local
 
-# Proto compiled files
-*_pb2.py
-*_pb2.pyi
-*_pb2_grpc.py

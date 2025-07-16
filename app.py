@@ -85,7 +85,7 @@ async def subscribe_symbols():
             "type": 1,
             "data": {
                 "subs": 1,
-                "symbols": ["NSE:BANKNIFTY25FEBFUT"],
+                "symbols": ["NSE:NIFTY25JULFUT"],
                 "mode": "depth",
                 "channel": "1"
             }
