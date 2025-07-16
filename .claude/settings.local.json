@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(touch:*)",
+      "Bash(python:*)",
+      "Bash(timeout:*)",
+      "Bash(taskkill:*)",
+      "Bash(wmic process where:*)",
+      "Bash(pkill:*)",
+      "Bash(tskill:*)",
+      "Bash(powershell:*)"
+    ],
+    "deny": []
+  }
+}

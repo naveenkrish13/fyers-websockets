@@ -1,22 +1,36 @@
 <img src="static/images/TBT.png" alt="TBT Logo" width="200"/>
 
-# Fyers Market Depth Viewer
+# Fyers Dom Analyzer
 
-A real-time market depth viewer application that connects to Fyers WebSocket API to stream Tick-by-Tick (TBT) market depth data for BANKNIFTY futures. Built with Flask and Socket.IO for real-time updates, and DaisyUI for a modern UI.
+A comprehensive real-time market depth analysis application that connects to Fyers WebSocket API to stream complete 50-level market depth data. Built with Flask and Socket.IO for real-time updates, featuring enhanced depth snapshot mechanism and configurable symbol support. Modern UI powered by DaisyUI.
 
-## Features
+## Enhanced Features
 
-- Real-time market depth data streaming via WebSocket
-- Advanced DOM (Depth of Market) Analysis:
+- **Complete 50-Level Market Depth**: Enhanced snapshot mechanism ensuring all 50 depth levels are captured and maintained
+- **Configurable Symbol Support**: Easy symbol configuration via .env file for any Fyers supported instrument
+- **Real-time Market Depth Streaming**: Robust WebSocket connection with automatic reconnection
+- **Advanced DOM (Depth of Market) Analysis**:
   - Support and Resistance Level Detection
-  - Large Order Tracking and Alerts
-  - Price Cluster Analysis
-  - Order Flow Metrics
-  - Market Sentiment Indicators
-- Interactive Depth Distribution Visualization
-- VWAP (Volume Weighted Average Price) Calculation
-- Price Level Activity Monitoring
-- Customizable DOM Display Options
+  - Large Order Tracking and Alerts (>3% of total volume)
+  - Price Cluster Analysis with 5-tier grouping
+  - Order Flow Metrics and Buyer Control indicators
+  - Market Sentiment Indicators with dynamic scoring
+- **Enhanced Depth Validation**: 
+  - Snapshot vs incremental update tracking
+  - Missing level detection and alerts
+  - Critical depth level monitoring
+- **Interactive Depth Distribution Visualization**:
+  - Top 5, Next 10, and Remaining levels breakdown
+  - Heat maps for order book visualization
+  - Customizable display options (10/20/50 levels)
+- **Advanced Analytics**:
+  - VWAP (Volume Weighted Average Price) Calculation
+  - Bid-Ask Spread Analysis with percentage calculation
+  - Cumulative Delta tracking
+  - Price Level Activity Monitoring
+- **Modern UI Components**:
+  - Dynamic symbol display from backend
+  - Customizable DOM Display Options
 - Real-time Market Statistics:
   - Bid-Ask Spread Analysis
   - Total Volume Analysis
@@ -55,11 +69,18 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-4. Update the `.env` file with your Fyers credentials:
+4. Update the `.env` file with your Fyers credentials and desired symbol:
 ```
 FYERS_APP_ID=your_app_id
 FYERS_ACCESS_TOKEN=your_access_token
+SYMBOL=NSE:NIFTY25JULFUT
 ```
+
+**Note**: You can change the `SYMBOL` parameter to any Fyers supported instrument like:
+- `NSE:BANKNIFTY25JULFUT` for Bank Nifty futures
+- `NSE:NIFTY25JULFUT` for Nifty futures  
+- `NSE:SBIN-EQ` for State Bank of India equity
+- `MCX:CRUDEOIL25JULFUT` for Crude Oil futures
 
 ## Understanding WebSockets
 
@@ -164,15 +185,26 @@ http://localhost:5000
 - Subscription: BANKNIFTY futures market depth data
 - Auto-ping enabled to maintain connection
 
-## Data Display
+## Enhanced Data Display
 
-The application shows:
-- Total bid and ask quantities at the top
-- Two tables showing bid and ask orders with:
+The application shows comprehensive market depth information:
+- **Header Stats**: Dynamic symbol display, total bid/ask quantities, real-time price updates
+- **Market Overview**: Bid-ask ratio visualization, market sentiment gauge, VWAP calculation
+- **Complete Order Book**: Full 50-level depth with:
   - Level number (1-50)
   - Price (formatted with 2 decimal places)
-  - Quantity (formatted with Indian number system)
+  - Quantity (formatted with Indian number system)  
   - Number of orders at each level
+  - Visual depth bars and heat mapping
+- **Advanced Analytics**:
+  - Large order detection (>3% threshold)
+  - Price level clustering and distribution
+  - Support/Resistance level identification
+  - Order flow metrics and cumulative delta
+- **Configurable Display Options**:
+  - Selectable depth levels (10/20/50)
+  - Toggle depth visualization bars
+  - Hide zero quantity levels option
 
 ## UI Features
 
@@ -205,6 +237,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Fyers API Documentation](https://api-docs.fyers.in/)
 - [DaisyUI](https://daisyui.com/)
 - [Flask-SocketIO](https://flask-socketio.readthedocs.io/)
+
+## Enhanced Version Features
+
+This enhanced version includes:
+- ✅ **Complete 50-level depth guarantee** with enhanced snapshot mechanism
+- ✅ **Configurable symbol support** via .env file
+- ✅ **Enhanced depth validation** and error detection
+- ✅ **Robust order book management** with initialization tracking
+- ✅ **Advanced market analytics** and visualization
+- ✅ **Modern UI improvements** with dynamic symbol display
 
 ## Author
 

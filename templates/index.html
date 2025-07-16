@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BANKNIFTY DOM Analyzer</title>
+    <title>Fyers Dom Analyzer</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@3.9.4/dist/full.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
@@ -164,8 +164,8 @@
     <div class="navbar bg-base-100 shadow-md sticky top-0 z-10">
         <div class="flex-1">
             <a class="btn btn-ghost normal-case text-xl">
-                <span class="text-primary font-bold">BANK</span><span>NIFTY</span>
-                <span class="text-xs ml-2 badge badge-primary badge-outline badge-sm">DOM ANALYZER</span>
+                <span class="text-primary font-bold">FYERS</span><span> DOM</span>
+                <span class="text-xs ml-2 badge badge-primary badge-outline badge-sm">ANALYZER</span>
             </a>
         </div>
         
@@ -173,7 +173,7 @@
             <div class="stats shadow hidden md:flex">
                 <div class="stat px-4 py-2">
                     <div class="stat-title text-xs">Symbol</div>
-                    <div class="stat-value text-md font-mono">BANKNIFTY25FEBFUT</div>
+                    <div class="stat-value text-md font-mono" id="symbol-display">{{ symbol or 'Loading...' }}</div>
                 </div>
                 <div class="stat px-4 py-2">
                     <div class="stat-title text-xs">Last Price</div>
@@ -409,6 +409,7 @@
                 <div class="flex flex-col md:flex-row justify-between items-center mb-2">
                     <h2 class="card-title text-lg">Depth of Market (DOM)</h2>
                     <div class="badge badge-primary mt-1 md:mt-0" id="dom-levels-count">50 Levels</div>
+                    <div class="badge badge-info mt-1 md:mt-0" id="actual-levels-count">0 Active</div>
                     <div class="flex gap-2 mt-2 md:mt-0">
                         <select class="select select-sm select-bordered" id="depth-level-select">
                             <option value="10">10 Levels</option>
@@ -424,7 +425,7 @@
                         <div class="form-control">
                             <label class="label cursor-pointer">
                                 <span class="label-text mr-2">Hide Zero Qty</span> 
-                                <input type="checkbox" class="toggle toggle-sm toggle-primary" id="toggle-hide-zero" checked />
+                                <input type="checkbox" class="toggle toggle-sm toggle-primary" id="toggle-hide-zero" />
                             </label>
                         </div>
                     </div>
@@ -599,12 +600,15 @@
     
     <footer class="footer footer-center p-4 bg-base-100 text-base-content mt-4">
         <div>
-            <p>© 2023 - BANKNIFTY DOM Analyzer - Real-time data from Fyers</p>
+            <p>© 2025 - Fyers Dom Analyzer - Real-time market depth analysis</p>
         </div>
     </footer>
 
     <script>
+        console.log('🚀 Initializing Frontend JavaScript');
+        console.log('🌐 Current location:', window.location.href);
         const socket = io();
+        console.log('📡 Socket.IO initialized:', socket);
         let priceChange = 0;
         let lastPrice = 0;
         let maxQuantity = { bid: 1, ask: 1 };
@@ -614,6 +618,7 @@
             bids: [],
             asks: []
         };
+        let updateCounter = 0;
         
         function formatPrice(price) {
             return price.toLocaleString('en-IN', {
@@ -949,6 +954,9 @@
         }
         
         function updateMarketDepth(data) {
+            updateCounter++;
+            console.log(`🔄 updateMarketDepth called (${updateCounter})`);
+            
             Object.entries(data).forEach(([symbol, depthData]) => {
                 // Update timestamp
                 document.getElementById('last-update-time').textContent = formatDateTime(depthData.timestamp);
@@ -1081,13 +1089,6 @@
                 const showDepthBars = document.getElementById('toggle-depth-bars').checked;
                 const hideZeroQty = document.getElementById('toggle-hide-zero').checked;
                 
-                // Update DOM levels count badge
-                document.getElementById('dom-levels-count').textContent = `${maxLevels} Levels`;
-                
-                // Update visible totals
-                let visibleBidQty = 0;
-                let visibleAskQty = 0;
-                
                 // Apply zero quantity filtering if enabled
                 let filteredBids = hideZeroQty 
                     ? validBids.filter(bid => bid.quantity > 0)
@@ -1096,12 +1097,33 @@
                 let filteredAsks = hideZeroQty 
                     ? validAsks.filter(ask => ask.quantity > 0)
                     : validAsks;
+                
+                // Update DOM levels count badges
+                document.getElementById('dom-levels-count').textContent = `${maxLevels} Levels`;
+                document.getElementById('actual-levels-count').textContent = `${filteredBids.length + filteredAsks.length} Active`;
+                
+                // Update visible totals
+                let visibleBidQty = 0;
+                let visibleAskQty = 0;
+                    
+                // Debug: Log filtering results
+                console.log(`🔍 Filtering Results:`);
+                console.log(`   📊 Valid bids before filtering: ${validBids.length}`);
+                console.log(`   📊 Valid asks before filtering: ${validAsks.length}`);
+                console.log(`   📊 Filtered bids: ${filteredBids.length}`);
+                console.log(`   📊 Filtered asks: ${filteredAsks.length}`);
+                console.log(`   ⚙️  Hide zero qty: ${hideZeroQty}`);
+                
+                // Visual feedback for debugging
+                if (filteredBids.length > 0 || filteredAsks.length > 0) {
+                    document.title = `Fyers Dom Analyzer - ${filteredBids.length}B/${filteredAsks.length}A`;
+                }
                     
                 // Ensure we have the required number of levels
                 filteredBids = filteredBids.slice(0, maxLevels);
                 filteredAsks = filteredAsks.slice(0, maxLevels);
                 
-                // Update asks (sell orders)
+                // Update asks (sell orders) - sorted by price ascending (lowest ask first)
                 const asksBody = document.getElementById('asks');
                 asksBody.innerHTML = '';
                 filteredAsks.forEach((level, index) => {
@@ -1118,7 +1140,7 @@
                     
                     row.innerHTML = `
                         <td class="text-center text-xs opacity-70">${index + 1}</td>
-                        <td class="font-mono ${level.level === 0 ? 'font-bold price-highlight' : ''}">${formatPrice(level.price)}</td>
+                        <td class="font-mono ${index === 0 ? 'font-bold price-highlight text-error' : ''}">${formatPrice(level.price)}</td>
                         <td class="font-mono text-right">${formatQuantity(level.quantity)}</td>
                         <td class="text-center">${level.orders}</td>
                         <td class="w-1/4 relative pr-2">
@@ -1129,7 +1151,7 @@
                     asksBody.appendChild(row);
                 });
                 
-                // Update bids (buy orders)
+                // Update bids (buy orders) - sorted by price descending (highest bid first)
                 const bidsBody = document.getElementById('bids');
                 bidsBody.innerHTML = '';
                 filteredBids.forEach((level, index) => {
@@ -1146,7 +1168,7 @@
                     
                     row.innerHTML = `
                         <td class="text-center text-xs opacity-70">${index + 1}</td>
-                        <td class="font-mono ${level.level === 0 ? 'font-bold price-highlight' : ''}">${formatPrice(level.price)}</td>
+                        <td class="font-mono ${index === 0 ? 'font-bold price-highlight text-success' : ''}">${formatPrice(level.price)}</td>
                         <td class="font-mono text-right">${formatQuantity(level.quantity)}</td>
                         <td class="text-center">${level.orders}</td>
                         <td class="w-1/4 relative pr-2">
@@ -1175,7 +1197,49 @@
             });
         }
 
+        socket.on('connect', function() {
+            console.log('🔗 WebSocket connected to frontend');
+            console.log('📡 Socket ID:', socket.id);
+        });
+        
+        socket.on('disconnect', function() {
+            console.log('❌ WebSocket disconnected from frontend');
+        });
+        
+        socket.on('connect_error', function(error) {
+            console.error('🚨 WebSocket connection error:', error);
+        });
+        
+        socket.on('test_message', function(data) {
+            console.log('✅ Test message received:', data);
+        });
+        
         socket.on('market_depth', function(data) {
+            // Debug logging for frontend data reception
+            console.log('📥 Frontend received market_depth event');
+            console.log('📊 Raw data received:', data);
+            console.log('📊 Data keys:', Object.keys(data));
+            
+            Object.entries(data).forEach(([symbol, depthData]) => {
+                console.log(`📥 Frontend received data for ${symbol}:`);
+                console.log(`   📈 Bids: ${depthData.bids.length} levels`);
+                console.log(`   📉 Asks: ${depthData.asks.length} levels`);
+                if (depthData.bids.length > 0) {
+                    console.log(`   💰 Best bid: ${depthData.bids[0].price}`);
+                    console.log(`   💰 First few bids:`, depthData.bids.slice(0, 3));
+                }
+                if (depthData.asks.length > 0) {
+                    console.log(`   💸 Best ask: ${depthData.asks[0].price}`);
+                    console.log(`   💸 First few asks:`, depthData.asks.slice(0, 3));
+                }
+                
+                // Log depth level distribution
+                const bidLevels = depthData.bids.map(b => b.level).sort((a,b) => a-b);
+                const askLevels = depthData.asks.map(a => a.level).sort((a,b) => a-b);
+                console.log(`   📊 Bid levels: ${bidLevels.slice(0, 10).join(', ')}${bidLevels.length > 10 ? '...' : ''}`);
+                console.log(`   📊 Ask levels: ${askLevels.slice(0, 10).join(', ')}${askLevels.length > 10 ? '...' : ''}`);
+            });
+            
             updateMarketDepth(data);
         });
 
