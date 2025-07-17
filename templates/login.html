@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fyers DOM - Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@3.9.4/dist/full.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(-45deg, #162434, #1d3a4e, #162434, #1f4164);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+        
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen flex items-center justify-center">
+    <div class="container mx-auto px-4">
+        <div class="max-w-md mx-auto">
+            <!-- Logo and Title -->
+            <div class="text-center mb-8">
+                <div class="mb-4">
+                    <h1 class="text-4xl font-bold text-white mb-2">
+                        <span class="text-primary">FYERS</span> DOM
+                    </h1>
+                    <p class="text-gray-300">Depth of Market Analyzer</p>
+                </div>
+            </div>
+
+            <!-- Login Card -->
+            <div class="card glass-card shadow-2xl">
+                <div class="card-body">
+                    <h2 class="card-title text-2xl font-bold text-center text-white mb-6">
+                        Welcome Back
+                    </h2>
+                    
+                    <form id="loginForm" class="space-y-4">
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text text-gray-300">Username</span>
+                            </label>
+                            <input 
+                                type="text" 
+                                name="username" 
+                                placeholder="Enter your username" 
+                                class="input input-bordered w-full bg-base-200/50 text-white placeholder-gray-400" 
+                                required
+                            />
+                        </div>
+                        
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text text-gray-300">Password</span>
+                            </label>
+                            <input 
+                                type="password" 
+                                name="password" 
+                                placeholder="Enter your password" 
+                                class="input input-bordered w-full bg-base-200/50 text-white placeholder-gray-400" 
+                                required
+                            />
+                        </div>
+                        
+                        <div class="form-control mt-6">
+                            <button type="submit" class="btn btn-primary btn-block" id="loginBtn">
+                                <span class="loading loading-spinner loading-sm hidden" id="loginSpinner"></span>
+                                Sign In
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="divider text-gray-400">OR</div>
+                    
+                    <div class="text-center">
+                        <p class="text-sm text-gray-400 mb-4">
+                            New to Fyers DOM? Contact administrator for account setup.
+                        </p>
+                        <div class="alert alert-info text-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span>Default: admin / admin123</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="text-center mt-8">
+                <p class="text-gray-400 text-sm">
+                    © 2025 Fyers DOM Analyzer. Secure trading platform.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Toast -->
+    <div class="toast toast-top toast-end hidden" id="errorToast">
+        <div class="alert alert-error">
+            <span id="errorMessage">Login failed</span>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const loginBtn = document.getElementById('loginBtn');
+            const loginSpinner = document.getElementById('loginSpinner');
+            const errorToast = document.getElementById('errorToast');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            // Show loading state
+            loginBtn.disabled = true;
+            loginSpinner.classList.remove('hidden');
+            loginBtn.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Signing In...';
+            
+            const formData = new FormData(this);
+            
+            try {
+                const response = await fetch('/auth/login', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.status === 'success') {
+                    // Redirect to broker login
+                    window.location.href = '/auth/broker';
+                } else {
+                    // Show error
+                    errorMessage.textContent = result.message || 'Login failed';
+                    errorToast.classList.remove('hidden');
+                    setTimeout(() => {
+                        errorToast.classList.add('hidden');
+                    }, 5000);
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                errorMessage.textContent = 'Network error. Please try again.';
+                errorToast.classList.remove('hidden');
+                setTimeout(() => {
+                    errorToast.classList.add('hidden');
+                }, 5000);
+            } finally {
+                // Reset button state
+                loginBtn.disabled = false;
+                loginSpinner.classList.add('hidden');
+                loginBtn.innerHTML = 'Sign In';
+            }
+        });
+    </script>
+</body>
+</html>

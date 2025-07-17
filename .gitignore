@@ -35,6 +35,12 @@ env/
 # Logs
 *.log
 
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+fyers_depth.db
+
 # Local development
 .DS_Store
 .env.local

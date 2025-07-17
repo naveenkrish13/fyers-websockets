@@ -3,22 +3,32 @@ import json
 import time
 import asyncio
 import websockets
-from flask import Flask, render_template
+import re
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from flask_socketio import SocketIO
 from dotenv import load_dotenv
 import msg_pb2
+from database import init_db, authenticate_user, get_auth_token, upsert_auth, find_user_by_username, get_auth_data
+from auth_utils import authenticate_broker, handle_auth_success, mask_api_credential
 
 # Load environment variables
 load_dotenv()
 
 # Configuration
-FYERS_APP_ID = os.getenv('FYERS_APP_ID').strip("'")
-FYERS_ACCESS_TOKEN = os.getenv('FYERS_ACCESS_TOKEN').strip("'")
-WEBSOCKET_URL = "wss://rtsocket-api.fyers.in/versova"
+WEBSOCKET_URL = os.getenv('WEBSOCKET_URL', 'wss://rtsocket-api.fyers.in/versova').strip("'")
 SYMBOL = os.getenv('SYMBOL', 'NSE:NIFTY25JULFUT').strip("'")
 
+# Broker Configuration
+BROKER_API_KEY = os.getenv('BROKER_API_KEY', '')
+BROKER_API_SECRET = os.getenv('BROKER_API_SECRET', '')
+REDIRECT_URL = os.getenv('REDIRECT_URL', 'http://localhost:5000/fyers/callback')
+
 app = Flask(__name__)
+app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production')
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Initialize database
+init_db()
 
 # Global order book storage for maintaining full depth
 order_books = {}
@@ -58,30 +68,26 @@ def update_order_book(ticker, bids, asks, tbq, tsq, timestamp, is_snapshot):
     else:
         print(f"[INCREMENTAL] INCREMENTAL: Updating {len(bids)} bid levels and {len(asks)} ask levels for {ticker}")
     
-    # Process bid updates (same logic for both snapshot and incremental)
+    # Process bid updates
     for bid in bids:
         level = bid['level']
         if 0 <= level < 50:
             old_data = order_books[ticker]['bids'][level]
             
-            # Enhanced logic to handle invalid market data (zero price with non-zero quantity)
             if bid['price'] == 0.0 and bid['qty'] > 0:
-                # INVALID: Zero price with non-zero quantity - preserve old price structure
                 if old_data['price'] > 0:
                     order_books[ticker]['bids'][level] = {
                         'price': old_data['price'], 
-                        'qty': bid['qty'],  # Use the new quantity but keep old price
+                        'qty': bid['qty'],
                         'orders': bid['orders'], 
                         'level': level
                     }
-                    print(f"   [BID] BID Level {level}: {old_data['price']:.2f} qty:{bid['qty']:,} orders:{bid['orders']} (INVALID DATA - preserved price)")
-                else:
-                    # No valid old price, skip this invalid update
-                    print(f"   [BID] BID Level {level}: SKIPPED invalid update (price:0.00 qty:{bid['qty']:,})")
+                    # Only log invalid data occasionally to reduce noise
+                    if level % 10 == 0:  # Log every 10th level only
+                        print(f"   [BID] Level {level}: Invalid data corrected (price preserved)")
+                # Skip invalid updates without valid old price
             elif bid['qty'] == 0:
-                # For zero quantity, preserve the level if we have valid existing data
                 if bid['price'] == 0.0 and old_data['price'] > 0:
-                    # Keep the old price but set quantity to 0 - this preserves depth structure
                     order_books[ticker]['bids'][level] = {
                         'price': old_data['price'], 
                         'qty': 0, 
@@ -90,15 +96,12 @@ def update_order_book(ticker, bids, asks, tbq, tsq, timestamp, is_snapshot):
                     }
                     print(f"   [BID] BID Level {level}: {old_data['price']:.2f} qty:0 orders:{bid['orders']} (preserving level)")
                 elif bid['price'] > 0:
-                    # Update with new price but zero quantity
                     order_books[ticker]['bids'][level] = bid
                     print(f"   [BID] BID Level {level}: {bid['price']:.2f} qty:0 orders:{bid['orders']} (was {old_data['price']:.2f} qty:{old_data['qty']:,})")
                 else:
-                    # Both price and quantity are zero, only remove if old price was also zero
                     if old_data['price'] == 0.0:
                         order_books[ticker]['bids'][level] = {'price': 0.0, 'qty': 0, 'orders': 0, 'level': level}
                     else:
-                        # Preserve the old price structure
                         order_books[ticker]['bids'][level] = {
                             'price': old_data['price'], 
                             'qty': 0, 
@@ -107,35 +110,30 @@ def update_order_book(ticker, bids, asks, tbq, tsq, timestamp, is_snapshot):
                         }
                         print(f"   [BID] BID Level {level}: {old_data['price']:.2f} qty:0 orders:{bid['orders']} (preserving structure)")
             else:
-                # Valid update with both price and quantity > 0
                 order_books[ticker]['bids'][level] = bid
                 if old_data['price'] != bid['price'] or old_data['qty'] != bid['qty']:
                     print(f"   [BID] BID Level {level}: {bid['price']:.2f} qty:{bid['qty']:,} orders:{bid['orders']} (was {old_data['price']:.2f} qty:{old_data['qty']:,})")
     
-    # Process ask updates (enhanced logic matching bid handling)
+    # Process ask updates
     for ask in asks:
         level = ask['level']
         if 0 <= level < 50:
             old_data = order_books[ticker]['asks'][level]
             
-            # Enhanced logic to handle invalid market data (zero price with non-zero quantity)
             if ask['price'] == 0.0 and ask['qty'] > 0:
-                # INVALID: Zero price with non-zero quantity - preserve old price structure
                 if old_data['price'] > 0:
                     order_books[ticker]['asks'][level] = {
                         'price': old_data['price'], 
-                        'qty': ask['qty'],  # Use the new quantity but keep old price
+                        'qty': ask['qty'],
                         'orders': ask['orders'], 
                         'level': level
                     }
-                    print(f"   [ASK] ASK Level {level}: {old_data['price']:.2f} qty:{ask['qty']:,} orders:{ask['orders']} (INVALID DATA - preserved price)")
-                else:
-                    # No valid old price, skip this invalid update
-                    print(f"   [ASK] ASK Level {level}: SKIPPED invalid update (price:0.00 qty:{ask['qty']:,})")
+                    # Only log invalid data occasionally to reduce noise
+                    if level % 10 == 0:  # Log every 10th level only
+                        print(f"   [ASK] Level {level}: Invalid data corrected (price preserved)")
+                # Skip invalid updates without valid old price
             elif ask['qty'] == 0:
-                # For zero quantity, preserve the level if we have valid existing data
                 if ask['price'] == 0.0 and old_data['price'] > 0:
-                    # Keep the old price but set quantity to 0 - this preserves depth structure
                     order_books[ticker]['asks'][level] = {
                         'price': old_data['price'], 
                         'qty': 0, 
@@ -144,15 +142,12 @@ def update_order_book(ticker, bids, asks, tbq, tsq, timestamp, is_snapshot):
                     }
                     print(f"   [ASK] ASK Level {level}: {old_data['price']:.2f} qty:0 orders:{ask['orders']} (preserving level)")
                 elif ask['price'] > 0:
-                    # Update with new price but zero quantity
                     order_books[ticker]['asks'][level] = ask
                     print(f"   [ASK] ASK Level {level}: {ask['price']:.2f} qty:0 orders:{ask['orders']} (was {old_data['price']:.2f} qty:{old_data['qty']:,})")
                 else:
-                    # Both price and quantity are zero, only remove if old price was also zero
                     if old_data['price'] == 0.0:
                         order_books[ticker]['asks'][level] = {'price': 0.0, 'qty': 0, 'orders': 0, 'level': level}
                     else:
-                        # Preserve the old price structure
                         order_books[ticker]['asks'][level] = {
                             'price': old_data['price'], 
                             'qty': 0, 
@@ -161,7 +156,6 @@ def update_order_book(ticker, bids, asks, tbq, tsq, timestamp, is_snapshot):
                         }
                         print(f"   [ASK] ASK Level {level}: {old_data['price']:.2f} qty:0 orders:{ask['orders']} (preserving structure)")
             else:
-                # Valid update with both price and quantity > 0
                 order_books[ticker]['asks'][level] = ask
                 if old_data['price'] != ask['price'] or old_data['qty'] != ask['qty']:
                     print(f"   [ASK] ASK Level {level}: {ask['price']:.2f} qty:{ask['qty']:,} orders:{ask['orders']} (was {old_data['price']:.2f} qty:{old_data['qty']:,})")
@@ -174,18 +168,6 @@ def update_order_book(ticker, bids, asks, tbq, tsq, timestamp, is_snapshot):
     active_asks = len([a for a in order_books[ticker]['asks'].values() if a['price'] > 0])
     
     print(f"   [STATUS] Update complete: {active_bids} active bid levels, {active_asks} active ask levels")
-    
-    if active_bids < 5 or active_asks < 5:
-        print(f"   [CRITICAL] CRITICAL: Very low depth - Bids: {active_bids}, Asks: {active_asks}")
-        
-    # Enhanced depth verification - only for logging, don't reset
-    missing_bid_levels = [i for i in range(min(10, 50)) if order_books[ticker]['bids'][i]['price'] == 0.0]
-    missing_ask_levels = [i for i in range(min(10, 50)) if order_books[ticker]['asks'][i]['price'] == 0.0]
-    
-    if missing_bid_levels:
-        print(f"   [WARNING] Missing bid levels in top 10: {missing_bid_levels}")
-    if missing_ask_levels:
-        print(f"   [WARNING] Missing ask levels in top 10: {missing_ask_levels}")
 
 def get_full_order_book(ticker):
     """Get the complete 50-level order book for display with proper depth reconstruction"""
@@ -198,57 +180,47 @@ def get_full_order_book(ticker):
     raw_bids = []
     for i in range(50):
         bid = book['bids'][i]
-        if bid['price'] > 0:  # Include all levels with valid prices, even if qty is 0
+        if bid['price'] > 0:
             raw_bids.append({
                 'price': bid['price'],
                 'qty': bid['qty'], 
                 'orders': bid['orders'],
-                'level': len(raw_bids)  # Reassign sequential level numbers
+                'level': len(raw_bids)
             })
     
     # Sort bids by price (highest first) and reassign levels
     raw_bids.sort(key=lambda x: x['price'], reverse=True)
     active_bids = []
-    for i, bid in enumerate(raw_bids[:50]):  # Limit to 50 levels
+    for i, bid in enumerate(raw_bids[:50]):
         active_bids.append({
             'price': bid['price'],
             'qty': bid['qty'],
             'orders': bid['orders'],
-            'level': i  # Sequential level 0-49
+            'level': i
         })
     
     # Get all ask levels with valid prices, sorted by price (ascending for asks)
     raw_asks = []
     for i in range(50):
         ask = book['asks'][i]
-        if ask['price'] > 0:  # Include all levels with valid prices, even if qty is 0
+        if ask['price'] > 0:
             raw_asks.append({
                 'price': ask['price'],
                 'qty': ask['qty'],
                 'orders': ask['orders'],
-                'level': len(raw_asks)  # Reassign sequential level numbers
+                'level': len(raw_asks)
             })
     
     # Sort asks by price (lowest first) and reassign levels
     raw_asks.sort(key=lambda x: x['price'])
     active_asks = []
-    for i, ask in enumerate(raw_asks[:50]):  # Limit to 50 levels
+    for i, ask in enumerate(raw_asks[:50]):
         active_asks.append({
             'price': ask['price'],
             'qty': ask['qty'],
             'orders': ask['orders'],
-            'level': i  # Sequential level 0-49
+            'level': i
         })
-    
-    # Enhanced logging for reconstructed depth
-    print(f"\n[DEPTH] DEPTH RECONSTRUCTION:")
-    print(f"   [BIDS] Raw bids found: {len(raw_bids)} -> Active bids: {len(active_bids)}")
-    print(f"   [ASKS] Raw asks found: {len(raw_asks)} -> Active asks: {len(active_asks)}")
-    
-    if len(active_bids) > 0:
-        print(f"   [BID] Best bid: {active_bids[0]['price']:.2f} (qty: {active_bids[0]['qty']:,})")
-    if len(active_asks) > 0:
-        print(f"   [ASK] Best ask: {active_asks[0]['price']:.2f} (qty: {active_asks[0]['qty']:,})")
     
     return {
         'ticker': ticker,
@@ -305,69 +277,23 @@ def process_market_depth(message_bytes):
                 }
                 update_asks.append(ask_data)
             
-            # Debug: Log raw update data
-            print(f"\n[RAW] RAW UPDATE DATA for {ticker}:")
-            print(f"   [BIDS] Raw bids in update: {len(update_bids)}")
-            print(f"   [ASKS] Raw asks in update: {len(update_asks)}")
-            if len(update_bids) > 0:
-                print(f"   [BID] First bid: Level {update_bids[0]['level']} Price {update_bids[0]['price']:.2f} Qty {update_bids[0]['qty']}")
-            if len(update_asks) > 0:
-                print(f"   [ASK] First ask: Level {update_asks[0]['level']} Price {update_asks[0]['price']:.2f} Qty {update_asks[0]['qty']}")
-            
             # Update the order book
             update_order_book(ticker, update_bids, update_asks, tbq, tsq, timestamp, is_snapshot)
             
             # Get the complete order book for display
             full_book = get_full_order_book(ticker)
             if full_book:
-                # Debug check - ensure we have valid data before processing
-                if len(full_book['bids']) == 0 and len(full_book['asks']) == 0:
-                    print(f"   [WARNING] WARNING: No valid bids or asks found for {ticker}")
-                    print(f"   [STATUS] Raw order book state:")
-                    for i in range(min(10, 50)):
-                        bid = order_books[ticker]['bids'][i]
-                        ask = order_books[ticker]['asks'][i]
-                        if bid['price'] > 0 or ask['price'] > 0:
-                            print(f"     Level {i}: Bid={bid['price']:.2f}(qty:{bid['qty']}) Ask={ask['price']:.2f}(qty:{ask['qty']})")
-                    return None
-                # Enhanced logging to show COMPLETE 50 depth levels
-                print(f"\n{'='*60}")
-                print(f"[ORDERBOOK] COMPLETE ORDER BOOK - {ticker}")
-                print(f"{'='*60}")
-                print(f"Total Buy Qty: {full_book['tbq']:,}")
-                print(f"Total Sell Qty: {full_book['tsq']:,}")
-                print(f"Active Bid Levels: {len(full_book['bids'])}")
-                print(f"Active Ask Levels: {len(full_book['asks'])}")
-                print(f"Update Type: {'SNAPSHOT' if is_snapshot else 'INCREMENTAL'}")
-                print(f"Timestamp: {full_book['timestamp']}")
-                
-                # Show ALL ACTIVE BID LEVELS
-                print(f"\n{'='*25} ALL ACTIVE BIDS {'='*25}")
-                print(f"{'Level':<5} {'Price':<10} {'Qty':<10} {'Orders':<8}")
-                print(f"{'-'*40}")
-                for bid in full_book['bids']:
-                    print(f"{bid['level']:<5} {bid['price']:<10.2f} {bid['qty']:<10,} {bid['orders']:<8}")
-                
-                # Show ALL ACTIVE ASK LEVELS
-                print(f"\n{'='*25} ALL ACTIVE ASKS {'='*25}")
-                print(f"{'Level':<5} {'Price':<10} {'Qty':<10} {'Orders':<8}")
-                print(f"{'-'*40}")
-                for ask in full_book['asks']:
-                    print(f"{ask['level']:<5} {ask['price']:<10.2f} {ask['qty']:<10,} {ask['orders']:<8}")
-                
-                print(f"{'='*60}")
-                
                 # Transform data structure to match frontend expectations
                 frontend_data = {
                     'ticker': full_book['ticker'],
-                    'timestamp': full_book['timestamp'] * 1000,  # Convert to milliseconds for JavaScript
-                    'total_bid_qty': full_book['tbq'],  # Frontend expects total_bid_qty
-                    'total_sell_qty': full_book['tsq'],  # Frontend expects total_sell_qty
+                    'timestamp': full_book['timestamp'] * 1000,
+                    'total_bid_qty': full_book['tbq'],
+                    'total_sell_qty': full_book['tsq'],
                     'bids': [
                         {
                             'level': bid['level'],
                             'price': bid['price'],
-                            'quantity': bid['qty'],  # Frontend expects 'quantity'
+                            'quantity': bid['qty'],
                             'orders': bid['orders']
                         }
                         for bid in full_book['bids']
@@ -376,7 +302,7 @@ def process_market_depth(message_bytes):
                         {
                             'level': ask['level'],
                             'price': ask['price'],
-                            'quantity': ask['qty'],  # Frontend expects 'quantity'
+                            'quantity': ask['qty'],
                             'orders': ask['orders']
                         }
                         for ask in full_book['asks']
@@ -389,36 +315,16 @@ def process_market_depth(message_bytes):
                     'askordn': full_book['askordn']
                 }
                 
-                # Enhanced frontend data logging
-                print(f"\n[FRONTEND] FRONTEND DATA SUMMARY:")
-                print(f"   [BIDS] Bids sent to frontend: {len(frontend_data['bids'])}")
-                print(f"   [ASKS] Asks sent to frontend: {len(frontend_data['asks'])}")
-                if len(frontend_data['bids']) > 0:
-                    print(f"   [BID] Best bid sent: {frontend_data['bids'][0]['price']:.2f}")
-                if len(frontend_data['asks']) > 0:
-                    print(f"   [ASK] Best ask sent: {frontend_data['asks'][0]['price']:.2f}")
-                print(f"   [BIDS] Total bid qty: {frontend_data['total_bid_qty']:,}")
-                print(f"   [ASKS] Total ask qty: {frontend_data['total_sell_qty']:,}")
-                
                 market_data[ticker] = frontend_data
-            else:
-                print(f"   [WARNING] Skipping {ticker} - no valid order book data")
         
-        if len(market_data) == 0:
-            print("   [ERROR] No market data to send to frontend")
-            return None
-            
-        return market_data
+        return market_data if len(market_data) > 0 else None
     except Exception as e:
         print(f"Error processing market depth: {e}")
-        import traceback
-        traceback.print_exc()
         return None
 
 async def subscribe_symbols():
     """Subscribe to market depth data for symbols"""
     try:
-        # Updated subscription message format for TBT WebSocket
         subscribe_msg = {
             "type": 1,
             "data": {
@@ -436,7 +342,6 @@ async def subscribe_symbols():
             await websocket.send(json.dumps(subscribe_msg))
             print("Subscribe message sent successfully")
             
-            # Resume channel message
             resume_msg = {
                 "type": 2,
                 "data": {
@@ -444,9 +349,6 @@ async def subscribe_symbols():
                     "pauseChannels": []
                 }
             }
-            
-            print(f"\n=== Sending Channel Resume Message ===")
-            print(f"Message: {json.dumps(resume_msg, indent=2)}")
             
             await websocket.send(json.dumps(resume_msg))
             print("Channel resume message sent successfully")
@@ -462,13 +364,30 @@ async def websocket_client():
     
     while True:
         try:
+            # Get auth data from database - only proceed if user is logged in
+            from database import db_session, Auth
+            active_auth = db_session.query(Auth).filter_by(is_revoked=False, broker='fyers').first()
+            
+            if not active_auth:
+                print("No active authentication found in database, waiting for login...")
+                await asyncio.sleep(10)
+                continue
+            
+            # Get all auth data including API key and auth token
+            auth_data = get_auth_data(active_auth.name)
+            
+            if not auth_data or not auth_data['auth_token'] or not auth_data['api_key']:
+                print("No valid auth data available, waiting...")
+                await asyncio.sleep(10)
+                continue
+                
             print("\n=== Attempting WebSocket Connection ===")
-            auth_header = f"{FYERS_APP_ID}:{FYERS_ACCESS_TOKEN}"
+            auth_header = f"{auth_data['api_key']}:{auth_data['auth_token']}"
             
             print(f"WebSocket URL: {WEBSOCKET_URL}")
-            print(f"App ID: {FYERS_APP_ID}")
-            print(f"Auth Header Format: {FYERS_APP_ID}:<access_token>")
-            print(f"Full Auth Header Length: {len(auth_header)}")
+            print(f"App ID: {auth_data['api_key']}")
+            print(f"User: {active_auth.name}")
+            print(f"Broker: {auth_data['broker']}")
             
             async with websockets.connect(
                 WEBSOCKET_URL,
@@ -498,32 +417,128 @@ async def websocket_client():
                             if market_data:
                                 print(f"[EMIT] Emitting market_depth data to frontend with {len(market_data)} symbols")
                                 socketio.emit('market_depth', market_data)
-                            else:
-                                print("[EMIT] No market_depth data to emit (empty or invalid)")
                         else:
                             print(f"Received text message: {message}")
                             
-                    except websockets.exceptions.ConnectionClosed:
+                    except websockets.ConnectionClosed:
                         print("WebSocket connection closed")
                         break
                     except Exception as e:
                         print(f"Error processing message: {e}")
                         
-        except websockets.exceptions.WebSocketException as e:
-            print("\n=== Connection Failed ===")
-            print(f"WebSocket Error: {str(e)}")
-            print(f"Please check your Fyers API credentials")
-            
         except Exception as e:
-            print(f"\n=== Unexpected Error ===")
+            print(f"\n=== Connection Error ===")
             print(f"Error: {str(e)}")
             
         print("\nRetrying connection in 5 seconds...")
         await asyncio.sleep(5)
 
+# Authentication Routes
 @app.route('/')
 def index():
-    return render_template('index.html', symbol=SYMBOL)
+    """Main route - redirect directly to Fyers login if not authenticated, otherwise to dashboard"""
+    if not session.get('logged_in'):
+        return redirect(url_for('broker_login'))
+    
+    return redirect(url_for('dashboard'))
+
+# Admin login route removed - using direct Fyers OAuth login
+
+@app.route('/auth/broker', methods=['GET'])
+def broker_login():
+    """Broker authentication page - direct Fyers login"""
+    if session.get('logged_in'):
+        return redirect(url_for('dashboard'))
+    
+    # Set a default user session for the authentication flow
+    if 'user' not in session:
+        session['user'] = 'fyers_user'
+    
+    broker_name = 'fyers'
+    if REDIRECT_URL:
+        match = re.search(r'/([^/]+)/callback', REDIRECT_URL)
+        if match:
+            broker_name = match.group(1)
+    
+    return render_template('broker.html',
+                         broker_api_key=BROKER_API_KEY,
+                         broker_api_key_masked=mask_api_credential(BROKER_API_KEY),
+                         broker_api_secret=BROKER_API_SECRET,
+                         broker_api_secret_masked=mask_api_credential(BROKER_API_SECRET),
+                         redirect_url=REDIRECT_URL,
+                         broker_name=broker_name)
+
+@app.route('/fyers/callback', methods=['GET'])
+def fyers_callback():
+    """Handle Fyers OAuth callback"""
+    # Set default user if not in session
+    if 'user' not in session:
+        session['user'] = 'fyers_user'
+    
+    auth_code = request.args.get('auth_code') or request.args.get('code')
+    error = request.args.get('error')
+    
+    if error:
+        error_msg = f"OAuth error: {error}"
+        print(error_msg)
+        return redirect(url_for('broker_login') + f'?error={error_msg}')
+    
+    if not auth_code:
+        error_msg = "No authorization code received"
+        print(error_msg)
+        return redirect(url_for('broker_login') + f'?error={error_msg}')
+    
+    print(f'Fyers broker callback - auth code: {auth_code}')
+    
+    auth_token, error_message = authenticate_broker(auth_code)
+    
+    if auth_token:
+        username = session['user']
+        success = handle_auth_success(auth_token, username, 'fyers')
+        
+        if success:
+            session['logged_in'] = True
+            session['broker'] = 'fyers'
+            print(f'Successfully authenticated user {username} with Fyers')
+            return redirect(url_for('dashboard'))
+        else:
+            error_msg = "Failed to store authentication token"
+            print(error_msg)
+            return redirect(url_for('broker_login') + f'?error={error_msg}')
+    else:
+        print(f"Fyers authentication failed: {error_message}")
+        return redirect(url_for('broker_login') + f'?error={error_message}')
+
+@app.route('/dashboard')
+def dashboard():
+    """Main dashboard with DOM display"""
+    if not session.get('logged_in'):
+        return redirect(url_for('broker_login'))
+    
+    # Set default user if not in session
+    if 'user' not in session:
+        session['user'] = 'fyers_user'
+    
+    username = session['user']
+    auth_token = get_auth_token(username)
+    
+    if not auth_token:
+        session.pop('logged_in', None)
+        return redirect(url_for('broker_login'))
+    
+    return render_template('dashboard.html', symbol=SYMBOL)
+
+@app.route('/auth/logout')
+def logout():
+    """Logout route"""
+    if session.get('logged_in'):
+        username = session.get('user')
+        if username:
+            upsert_auth(username, "", "fyers", revoke=True)
+            print(f'Auth token revoked for user: {username}')
+    
+    session.clear()
+    return redirect(url_for('broker_login'))
 
 @app.route('/api/config')
 def get_config():
@@ -536,18 +551,15 @@ def get_config():
 @socketio.on('connect')
 def handle_connect():
     print('Client connected')
-    # Send a test message to verify connection
     socketio.emit('test_message', {'message': 'Hello from backend!'})
 
 def run_websocket():
     asyncio.run(websocket_client())
 
 if __name__ == '__main__':
-    # Start WebSocket client in a separate thread
     import threading
     ws_thread = threading.Thread(target=run_websocket)
     ws_thread.daemon = True
     ws_thread.start()
     
-    # Run Flask application
-    socketio.run(app, debug=True, port=5001)
+    socketio.run(app, debug=True, port=5000)
