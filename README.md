@@ -1,62 +1,137 @@
 # 📊 Fyers DOM Analyzer
 
-> **Professional-grade Depth of Market analysis platform for serious traders**
+> **Professional-grade Depth of Market analysis platform powered by Fyers TBT Data Feed**
 
-A real-time 50-level DOM analyzer with secure Fyers OAuth integration, advanced order flow analytics, and institutional-quality market depth visualization.
+A real-time 50-level DOM analyzer with secure Fyers OAuth integration, advanced order flow analytics, and institutional-quality market depth visualization using high-frequency Tick-By-Tick market data.
 
 ![Fyers DOM Analyzer](https://img.shields.io/badge/Fyers-DOM%20Analyzer-blue?style=for-the-badge&logo=trading&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.8+-green?style=for-the-badge&logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-WebSocket-red?style=for-the-badge&logo=flask&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
+![TBT Feed](https://img.shields.io/badge/TBT-Feed-orange?style=for-the-badge&logo=data&logoColor=white)
+![License](https://img.shields.io/badge/License-AGPL%20v3-blue?style=for-the-badge)
+
+## 🚀 Getting Started with Fyers API
+
+### **Step 1: Get Your Fyers API Credentials**
+
+1. **Visit** [Fyers API Portal](https://myapi.fyers.in/) and create an account
+2. **Complete KYC** verification process
+3. **Create a new app** to get your API credentials:
+   - **App ID**: Your unique application identifier
+   - **Secret Key**: Your app's secret key
+   - **Redirect URL**: `http://localhost:5000/fyers/callback`
+
+### **Step 2: Understanding TBT (Tick-By-Tick) Data Feed**
+
+**TBT Feed** provides real-time, high-frequency market data including:
+- **Order Book Updates**: Real-time bid/ask price and quantity changes
+- **Market Depth**: 50-level DOM (Depth of Market) data
+- **Trade Executions**: Every trade with timestamp, price, and volume
+- **Market Statistics**: OHLC, volume, and other market metrics
+
+**Data Frequency**: Up to 1000+ updates per second during active trading
+**Latency**: < 10ms from exchange to your application
+**Coverage**: NSE, BSE, MCX, and other major Indian exchanges
+
+### **Step 3: API Documentation**
+
+📖 **Complete API Documentation**: [Fyers API v3 Docs](https://myapi.fyers.in/docsv3)
+
+Key sections for DOM analysis:
+- **WebSocket API**: Real-time data streaming
+- **Market Data**: Depth, quotes, and historical data
+- **Authentication**: OAuth 2.0 implementation
+- **Order Management**: Place, modify, and cancel orders
+
+## 🎯 What is TBT Feed and How Traders Use It
+
+### **What is Tick-By-Tick (TBT) Data?**
+
+TBT data is the most granular form of market data available, containing every price change, order book update, and trade execution as they happen on the exchange. Unlike traditional quote data that may aggregate or sample data, TBT provides:
+
+- **Every bid/ask price change** with exact timestamps
+- **Complete order book depth** (50 levels on each side)
+- **Real-time trade executions** with volume and price
+- **Market microstructure data** for advanced analysis
+
+### **How Professional Traders Use This Tool**
+
+#### **1. Scalping & High-Frequency Trading**
+- **Order Flow Analysis**: Identify large orders being placed or removed
+- **Market Imbalance Detection**: Spot when buy/sell pressure is building
+- **Price Action Prediction**: Anticipate short-term price movements
+- **Optimal Entry/Exit Timing**: Execute trades at the best possible prices
+
+#### **2. Institutional Trading**
+- **Market Impact Analysis**: Understand how large orders affect prices
+- **Execution Quality**: Minimize slippage and market impact
+- **Smart Order Routing**: Break large orders into smaller, market-friendly sizes
+- **Risk Management**: Monitor position exposure in real-time
+
+#### **3. Market Making & Arbitrage**
+- **Spread Analysis**: Identify profitable bid-ask spreads
+- **Liquidity Provision**: Provide liquidity where it's needed most
+- **Cross-Exchange Arbitrage**: Exploit price differences across exchanges
+- **Delta Neutral Strategies**: Hedge positions using real-time Greeks
+
+#### **4. Algorithmic Trading**
+- **Pattern Recognition**: Identify recurring market patterns
+- **Volume Analysis**: Understand when institutions are active
+- **Support/Resistance**: Dynamic levels based on order flow
+- **Momentum Trading**: Catch trends as they develop
 
 ## ✨ Key Features
 
 ### 🔐 **Secure Authentication**
-- **Direct Fyers OAuth 2.0** integration (no admin login required)
+- **Direct Fyers OAuth 2.0** integration with official API
 - **Encrypted database storage** for auth tokens and API credentials
 - **Automatic session management** with secure token handling
 - **Bank-grade security** with Argon2 password hashing and Fernet encryption
 
 ### 📈 **Advanced Market Analysis**
-- **50-level DOM visualization** with real-time updates
+- **50-level DOM visualization** with real-time TBT updates
 - **Order flow analytics** with bid-ask ratio analysis
 - **Market sentiment indicators** and price level metrics
 - **Heat mapping** for order concentration visualization
 - **Large order detection** and market imbalance tracking
+- **VWAP calculation** and support/resistance levels
+- **Price cluster analysis** for institutional order detection
 
 ### 🚀 **Real-Time Performance**
-- **WebSocket streaming** with millisecond precision
+- **WebSocket streaming** with millisecond precision TBT data
 - **Intelligent data validation** with invalid data correction
 - **Connection resilience** with automatic reconnection
 - **Optimized logging** for clean monitoring
+- **High-frequency updates** supporting 1000+ ticks per second
 
 ### 🎨 **Modern UI/UX**
-- **Hero-style landing page** with professional design
-- **Glass morphism effects** and smooth animations
-- **Responsive design** for all devices
-- **Dark theme** optimized for trading environments
+- **Minimalist design** inspired by professional trading platforms
+- **Clean, Apple-inspired interface** with smooth animations
+- **Responsive design** optimized for all devices
+- **Real-time data visualization** with interactive charts
+- **Professional color scheme** for extended trading sessions
 
 ## 🚀 Quick Start
 
 ### 1. **Clone & Setup**
 ```bash
-git clone <repository-url>
+git clone https://github.com/marketcalls/fyers-websockets.git
 cd fyers-websockets
 pip install -r requirements.txt
 ```
 
 ### 2. **Configure Environment**
-Copy `.env.example` to `.env` and add your Fyers API credentials:
+Copy `.env.example` to `.env` and add your Fyers API credentials from [myapi.fyers.in](https://myapi.fyers.in/):
 
 ```env
-# Broker Configuration (Required for OAuth login)
-BROKER_API_KEY=your_fyers_app_id
-BROKER_API_SECRET=your_fyers_secret_key
+# Fyers API Configuration (Get from https://myapi.fyers.in/)
+BROKER_API_KEY=your_fyers_app_id          # Your App ID from Fyers API portal
+BROKER_API_SECRET=your_fyers_secret_key   # Your Secret Key from Fyers API portal
 REDIRECT_URL=http://localhost:5000/fyers/callback
 
-# WebSocket Configuration
-WEBSOCKET_URL=wss://rtsocket-api.fyers.in/versova
-SYMBOL=NSE:NIFTY25JULFUT
+# TBT WebSocket Configuration
+WEBSOCKET_URL=wss://rtsocket-api.fyers.in/versova  # Fyers TBT data feed endpoint
+SYMBOL=NSE:NIFTY25JULFUT                            # Trading symbol for DOM analysis
 
 # Database Configuration
 DATABASE_URL=sqlite:///fyers_auth.db
@@ -66,12 +141,16 @@ SECRET_KEY=your_flask_secret_key_change_in_production
 API_KEY_PEPPER=your_secure_pepper_key_change_in_production
 ```
 
+> **📝 Note**: Visit [Fyers API Portal](https://myapi.fyers.in/) to create your app and get credentials. Complete KYC verification is required.
+
 ### 3. **Launch Application**
 ```bash
 python app.py
 ```
 
-Visit `http://localhost:5000` and start trading! 🎯
+Visit `http://localhost:5000` and start analyzing market depth! 🎯
+
+> **🔗 First-time Setup**: You'll be redirected to Fyers OAuth login to authenticate your account and start receiving TBT data.
 
 ## 🔄 Authentication Flow
 
@@ -87,10 +166,10 @@ graph TD
 ```
 
 ### **Simplified Flow:**
-1. **🏠 Landing Page** → Professional hero section explaining DOM Analyzer
-2. **🔗 Connect to Fyers** → Secure OAuth 2.0 authentication
-3. **📊 Dashboard Access** → Real-time 50-level market depth
-4. **🔄 Auto-Reconnection** → Seamless WebSocket management
+1. **🏠 Landing Page** → Professional interface explaining DOM Analyzer
+2. **🔗 Connect to Fyers** → Secure OAuth 2.0 authentication via [myapi.fyers.in](https://myapi.fyers.in/)
+3. **📊 Dashboard Access** → Real-time 50-level market depth with TBT feed
+4. **🔄 Auto-Reconnection** → Seamless WebSocket management for continuous data
 
 ## 🗄️ Database Architecture
 
@@ -156,25 +235,69 @@ market_depth             → Real-time DOM data updates
 test_message             → Connection test message
 ```
 
+## 📈 Trading Strategies & Use Cases
+
+### **Day Trading with DOM Analysis**
+
+#### **1. Scalping Strategy**
+- **Setup**: Monitor 1-5 top levels for quick entries
+- **Entry**: When large orders appear on one side, fade the move
+- **Exit**: Target 2-3 ticks profit with tight stop-loss
+- **Risk**: Use position sizing based on DOM imbalance
+
+#### **2. Momentum Trading**
+- **Setup**: Watch for order flow imbalances in direction
+- **Entry**: Enter when DOM shows strong directional bias
+- **Exit**: Exit when DOM neutralizes or reverses
+- **Risk**: Stop-loss beyond significant DOM levels
+
+#### **3. Mean Reversion**
+- **Setup**: Identify when DOM shows extreme imbalance
+- **Entry**: Counter-trend when DOM reaches extreme levels
+- **Exit**: Target return to VWAP or neutral DOM
+- **Risk**: Tight stops as DOM can stay imbalanced
+
+### **Institutional Trading Applications**
+
+#### **Smart Order Execution**
+- **Order Slicing**: Break large orders based on DOM levels
+- **Timing**: Execute during periods of high DOM liquidity
+- **Impact**: Minimize market impact using DOM guidance
+- **Fill**: Achieve better fills by reading DOM patterns
+
+#### **Risk Management**
+- **Position Sizing**: Adjust size based on DOM liquidity
+- **Stop Placement**: Use DOM levels for stop-loss placement
+- **Market Regime**: Identify high/low volatility periods
+- **Exposure**: Monitor real-time P&L impact
+
+### **Market Making Strategies**
+- **Spread Trading**: Identify profitable bid-ask spreads
+- **Liquidity Provision**: Provide liquidity at key DOM levels
+- **Inventory Management**: Balance long/short positions
+- **Delta Hedging**: Use DOM for dynamic hedging
+
 ## 🔧 Advanced Configuration
 
 ### **Environment Variables**
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `BROKER_API_KEY` | Fyers App ID | Required |
-| `BROKER_API_SECRET` | Fyers Secret Key | Required |
-| `REDIRECT_URL` | OAuth callback URL | `http://localhost:5000/fyers/callback` |
-| `WEBSOCKET_URL` | Fyers WebSocket endpoint | `wss://rtsocket-api.fyers.in/versova` |
-| `SYMBOL` | Trading symbol | `NSE:NIFTY25JULFUT` |
-| `DATABASE_URL` | Database connection | `sqlite:///fyers_auth.db` |
-| `SECRET_KEY` | Flask session key | Change in production |
-| `API_KEY_PEPPER` | Encryption pepper | Change in production |
+| Variable | Description | Default | Source |
+|----------|-------------|---------|---------|
+| `BROKER_API_KEY` | Fyers App ID | Required | [myapi.fyers.in](https://myapi.fyers.in/) |
+| `BROKER_API_SECRET` | Fyers Secret Key | Required | [myapi.fyers.in](https://myapi.fyers.in/) |
+| `REDIRECT_URL` | OAuth callback URL | `http://localhost:5000/fyers/callback` | Your app settings |
+| `WEBSOCKET_URL` | Fyers TBT WebSocket endpoint | `wss://rtsocket-api.fyers.in/versova` | [API Docs](https://myapi.fyers.in/docsv3) |
+| `SYMBOL` | Trading symbol for DOM | `NSE:NIFTY25JULFUT` | Exchange format |
+| `DATABASE_URL` | Database connection | `sqlite:///fyers_auth.db` | Local SQLite |
+| `SECRET_KEY` | Flask session key | Change in production | Generate secure key |
+| `API_KEY_PEPPER` | Encryption pepper | Change in production | Generate secure key |
 
-### **WebSocket Data Handling**
+### **TBT Data Processing**
+- **High-Frequency Updates**: Handles 1000+ ticks per second efficiently
 - **Invalid Data Correction**: Automatically handles price=0.0 + quantity>0 anomalies
 - **Order Book Integrity**: Maintains 50-level depth with data validation
-- **Reduced Logging**: Smart logging to prevent console spam
-- **Connection Resilience**: Auto-reconnection with exponential backoff
+- **Reduced Logging**: Smart logging to prevent console spam during high-frequency updates
+- **Connection Resilience**: Auto-reconnection with exponential backoff for TBT stream
+- **Market Hours Detection**: Automatically handles market open/close states
 
 ## 🚨 Troubleshooting
 
@@ -182,11 +305,13 @@ test_message             → Connection test message
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
-| **"No active authentication found"** | OAuth not completed | Complete Fyers OAuth flow |
-| **WebSocket connection fails** | Invalid credentials | Verify `BROKER_API_KEY` and auth token |
+| **"No active authentication found"** | OAuth not completed | Complete Fyers OAuth flow at [myapi.fyers.in](https://myapi.fyers.in/) |
+| **WebSocket connection fails** | Invalid credentials | Verify `BROKER_API_KEY` and auth token from API portal |
 | **Database errors** | Permission issues | Check SQLite file permissions |
-| **"Invalid data - preserved price"** | Exchange data quality | Normal - system auto-corrects |
+| **"Invalid TBT data - preserved price"** | Exchange data quality | Normal - system auto-corrects high-frequency anomalies |
 | **Template not found** | Missing dashboard.html | Ensure `templates/dashboard.html` exists |
+| **KYC not completed** | Fyers account not verified | Complete KYC verification in Fyers account |
+| **App not approved** | API app pending approval | Wait for Fyers to approve your API application |
 
 ### **Debug Mode**
 ```bash
@@ -226,11 +351,12 @@ CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
 
 ## 📊 Performance Metrics
 
-- **WebSocket Latency**: < 10ms average
-- **Order Book Updates**: 1000+ updates/second
-- **Memory Usage**: < 100MB typical
-- **Database Queries**: < 1ms average
-- **UI Responsiveness**: 60fps animations
+- **TBT Data Latency**: < 10ms average from exchange
+- **Order Book Updates**: 1000+ TBT ticks/second during active trading
+- **Memory Usage**: < 100MB typical for 50-level DOM
+- **Database Queries**: < 1ms average for auth operations
+- **UI Responsiveness**: 60fps animations with real-time updates
+- **WebSocket Throughput**: Handles peak market volume efficiently
 
 ## 🤝 Contributing
 
@@ -242,14 +368,21 @@ CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0) - see the [LICENSE](LICENSE) file for details.
+
+**Key Points:**
+- ✅ **Free to use** for personal and commercial purposes
+- ✅ **Modify and distribute** under the same license
+- ⚠️ **Network use is distribution** - if you run this on a server, you must provide source code to users
+- ⚠️ **Copyleft license** - derivative works must also be AGPL-3.0
 
 ## 🙏 Acknowledgments
 
-- **Fyers API** for providing robust trading infrastructure
+- **Fyers API** for providing robust TBT data feed and trading infrastructure
 - **Flask-SocketIO** for real-time WebSocket communication
 - **DaisyUI** for beautiful, accessible UI components
 - **SQLAlchemy** for reliable database operations
+- **Professional traders** who provided feedback on DOM analysis features
 
 ---
 
@@ -257,6 +390,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Built with ❤️ for professional traders**
 
-[🌟 Star this repo](../../stargazers) • [🐛 Report Bug](../../issues) • [💡 Request Feature](../../issues)
+[🌟 Star this repo](https://github.com/marketcalls/fyers-websockets/stargazers) • [🐛 Report Bug](https://github.com/marketcalls/fyers-websockets/issues) • [💡 Request Feature](https://github.com/marketcalls/fyers-websockets/issues)
 
 </div>
