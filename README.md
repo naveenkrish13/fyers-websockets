@@ -10,16 +10,23 @@ A real-time 50-level DOM analyzer with secure Fyers OAuth integration, advanced 
 ![TBT Feed](https://img.shields.io/badge/TBT-Feed-orange?style=for-the-badge&logo=data&logoColor=white)
 ![License](https://img.shields.io/badge/License-AGPL%20v3-blue?style=for-the-badge)
 
+## 📸 Live TBT DOM Interface
+
+![Fyers TBT DOM Analyzer](static/images/TBT.png)
+
+*Real-time 50-level Depth of Market visualization with TBT data feed showing live bid/ask orders, market sentiment, and order flow analytics for NSE:NIFTY25JULFUT*
+
 ## 🚀 Getting Started with Fyers API
 
 ### **Step 1: Get Your Fyers API Credentials**
 
-1. **Visit** [Fyers API Portal](https://myapi.fyers.in/) and create an account
-2. **Complete KYC** verification process
-3. **Create a new app** to get your API credentials:
+1. **Visit** [Fyers API Portal](https://myapi.fyers.in/) to get your API credentials
+2. **Create a new app** to get your API credentials:
    - **App ID**: Your unique application identifier
    - **Secret Key**: Your app's secret key
-   - **Redirect URL**: `http://localhost:5000/fyers/callback`
+   - **Redirect URL**: `http://127.0.0.1:5000/fyers/callback`
+
+> **Note**: [myapi.fyers.in](https://myapi.fyers.in/) is specifically for obtaining API credentials and accessing documentation. Your actual trading account should be with Fyers Securities.
 
 ### **Step 2: Understanding TBT (Tick-By-Tick) Data Feed**
 
@@ -38,10 +45,12 @@ A real-time 50-level DOM analyzer with secure Fyers OAuth integration, advanced 
 📖 **Complete API Documentation**: [Fyers API v3 Docs](https://myapi.fyers.in/docsv3)
 
 Key sections for DOM analysis:
-- **WebSocket API**: Real-time data streaming
+- **WebSocket API**: Real-time TBT data streaming
 - **Market Data**: Depth, quotes, and historical data
 - **Authentication**: OAuth 2.0 implementation
 - **Order Management**: Place, modify, and cancel orders
+
+> **Important**: [myapi.fyers.in](https://myapi.fyers.in/) is the official API portal for credentials and documentation only. Trading operations require a separate Fyers Securities account.
 
 ## 🎯 What is TBT Feed and How Traders Use It
 
@@ -127,36 +136,36 @@ Copy `.env.example` to `.env` and add your Fyers API credentials from [myapi.fye
 # Fyers API Configuration (Get from https://myapi.fyers.in/)
 BROKER_API_KEY=your_fyers_app_id          # Your App ID from Fyers API portal
 BROKER_API_SECRET=your_fyers_secret_key   # Your Secret Key from Fyers API portal
-REDIRECT_URL=http://localhost:5000/fyers/callback
+REDIRECT_URL=http://127.0.0.1:5000/fyers/callback
 
 # TBT WebSocket Configuration
 WEBSOCKET_URL=wss://rtsocket-api.fyers.in/versova  # Fyers TBT data feed endpoint
 SYMBOL=NSE:NIFTY25JULFUT                            # Trading symbol for DOM analysis
 
 # Database Configuration
-DATABASE_URL=sqlite:///fyers_auth.db
+DATABASE_URL=sqlite:///fyers_depth.db
 
 # Security (Change in production)
 SECRET_KEY=your_flask_secret_key_change_in_production
 API_KEY_PEPPER=your_secure_pepper_key_change_in_production
 ```
 
-> **📝 Note**: Visit [Fyers API Portal](https://myapi.fyers.in/) to create your app and get credentials. Complete KYC verification is required.
+> **📝 Note**: Visit [Fyers API Portal](https://myapi.fyers.in/) to create your app and get API credentials. This is for API access only - you'll need a separate Fyers Securities trading account for actual trading.
 
 ### 3. **Launch Application**
 ```bash
 python app.py
 ```
 
-Visit `http://localhost:5000` and start analyzing market depth! 🎯
+Visit `http://127.0.0.1:5000` and start analyzing market depth! 🎯
 
-> **🔗 First-time Setup**: You'll be redirected to Fyers OAuth login to authenticate your account and start receiving TBT data.
+> **🔗 First-time Setup**: You'll be redirected to Fyers OAuth login to authenticate your trading account and start receiving TBT data.
 
 ## 🔄 Authentication Flow
 
 ```mermaid
 graph TD
-    A[Visit localhost:5000] --> B[Hero Landing Page]
+    A[Visit 127.0.0.1:5000] --> B[Hero Landing Page]
     B --> C[Click 'Connect to Fyers']
     C --> D[Fyers OAuth Login]
     D --> E[Authorize Application]
@@ -167,7 +176,7 @@ graph TD
 
 ### **Simplified Flow:**
 1. **🏠 Landing Page** → Professional interface explaining DOM Analyzer
-2. **🔗 Connect to Fyers** → Secure OAuth 2.0 authentication via [myapi.fyers.in](https://myapi.fyers.in/)
+2. **🔗 Connect to Fyers** → Secure OAuth 2.0 authentication using API credentials
 3. **📊 Dashboard Access** → Real-time 50-level market depth with TBT feed
 4. **🔄 Auto-Reconnection** → Seamless WebSocket management for continuous data
 
@@ -284,10 +293,10 @@ test_message             → Connection test message
 |----------|-------------|---------|---------|
 | `BROKER_API_KEY` | Fyers App ID | Required | [myapi.fyers.in](https://myapi.fyers.in/) |
 | `BROKER_API_SECRET` | Fyers Secret Key | Required | [myapi.fyers.in](https://myapi.fyers.in/) |
-| `REDIRECT_URL` | OAuth callback URL | `http://localhost:5000/fyers/callback` | Your app settings |
+| `REDIRECT_URL` | OAuth callback URL | `http://127.0.0.1:5000/fyers/callback` | Your app settings |
 | `WEBSOCKET_URL` | Fyers TBT WebSocket endpoint | `wss://rtsocket-api.fyers.in/versova` | [API Docs](https://myapi.fyers.in/docsv3) |
 | `SYMBOL` | Trading symbol for DOM | `NSE:NIFTY25JULFUT` | Exchange format |
-| `DATABASE_URL` | Database connection | `sqlite:///fyers_auth.db` | Local SQLite |
+| `DATABASE_URL` | Database connection | `sqlite:///fyers_depth.db` | Local SQLite |
 | `SECRET_KEY` | Flask session key | Change in production | Generate secure key |
 | `API_KEY_PEPPER` | Encryption pepper | Change in production | Generate secure key |
 
@@ -305,13 +314,13 @@ test_message             → Connection test message
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
-| **"No active authentication found"** | OAuth not completed | Complete Fyers OAuth flow at [myapi.fyers.in](https://myapi.fyers.in/) |
+| **"No active authentication found"** | OAuth not completed | Complete Fyers OAuth flow with your trading account |
 | **WebSocket connection fails** | Invalid credentials | Verify `BROKER_API_KEY` and auth token from API portal |
 | **Database errors** | Permission issues | Check SQLite file permissions |
 | **"Invalid TBT data - preserved price"** | Exchange data quality | Normal - system auto-corrects high-frequency anomalies |
 | **Template not found** | Missing dashboard.html | Ensure `templates/dashboard.html` exists |
-| **KYC not completed** | Fyers account not verified | Complete KYC verification in Fyers account |
-| **App not approved** | API app pending approval | Wait for Fyers to approve your API application |
+| **KYC not completed** | Fyers trading account not verified | Complete KYC verification in your Fyers Securities account |
+| **App not approved** | API app pending approval | Wait for Fyers to approve your API application at [myapi.fyers.in](https://myapi.fyers.in/) |
 
 ### **Debug Mode**
 ```bash
@@ -319,10 +328,10 @@ test_message             → Connection test message
 python app.py
 
 # Check WebSocket connection
-curl -I http://localhost:5000/api/config
+curl -I http://127.0.0.1:5000/api/config
 
 # Verify database
-sqlite3 fyers_auth.db ".tables"
+sqlite3 fyers_depth.db ".tables"
 ```
 
 ## 🚀 Production Deployment
