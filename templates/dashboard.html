@@ -709,9 +709,6 @@
         const lotSize = {{ lot_size }};
         let displayLotSize = false;
         
-        // Debug lot size
-        console.log('🔢 Lot size loaded:', lotSize, typeof lotSize);
-        
         function formatPrice(price) {
             return price.toLocaleString('en-IN', {
                 minimumFractionDigits: 2,
@@ -729,7 +726,6 @@
         
         function formatQuantity(qty) {
             if (displayLotSize && lotSize > 0) {
-                console.log(`🔢 Converting qty: ${qty}, lotSize: ${lotSize}, ratio: ${qty/lotSize}`);
                 const completeLots = Math.floor(qty / lotSize);
                 const remainingShares = qty % lotSize;
                 

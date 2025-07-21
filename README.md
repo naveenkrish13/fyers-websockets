@@ -89,6 +89,44 @@ TBT data is the most granular form of market data available, containing every pr
 - **Support/Resistance**: Dynamic levels based on order flow
 - **Momentum Trading**: Catch trends as they develop
 
+## 📊 OrderBook Imbalance Analysis
+
+### **Multi-Level Imbalance Metrics**
+The application calculates orderbook imbalances at three different depth levels to provide comprehensive market sentiment analysis:
+
+#### **10-Level Imbalance**
+- **Purpose**: Short-term momentum and scalping signals
+- **Calculation**: (Bid Qty - Ask Qty) / (Bid Qty + Ask Qty) × 100
+- **Interpretation**: Quick market sentiment changes for day trading
+
+#### **20-Level Imbalance**
+- **Purpose**: Medium-term trend analysis and swing trading
+- **Calculation**: Aggregate of top 20 levels on each side
+- **Interpretation**: Institution activity and momentum direction
+
+#### **50-Level Imbalance**
+- **Purpose**: Long-term sentiment and market structure analysis
+- **Calculation**: Full depth analysis for complete market picture
+- **Interpretation**: Overall market bias and structural changes
+
+### **Imbalance Interpretation Guide**
+
+| Imbalance Range | Interpretation | Trading Signal |
+|----------------|---------------|----------------|
+| **> +30%** | Strong Buying Pressure | Bullish momentum - Consider long positions |
+| **+15% to +30%** | Moderate Buying Pressure | Mild bullish bias - Wait for confirmation |
+| **+5% to +15%** | Slight Buying Pressure | Weak bullish - Monitor for changes |
+| **-5% to +5%** | Balanced | Neutral market - Range-bound trading |
+| **-15% to -5%** | Slight Selling Pressure | Weak bearish - Monitor for changes |
+| **-30% to -15%** | Moderate Selling Pressure | Mild bearish bias - Consider short positions |
+| **< -30%** | Strong Selling Pressure | Bearish momentum - Consider short positions |
+
+### **Lot Size Display Toggle**
+- **Switch between views**: Number of shares ↔ Lot-based display
+- **Accurate lot calculation**: Shows complete lots + remaining shares
+- **Trading-friendly format**: "3 lots + 25" for 250 shares with lot size 75
+- **Configurable lot size**: Set via `LOT_SIZE` environment variable
+
 ## ✨ Key Features
 
 ### 🔐 **Secure Authentication**
@@ -105,6 +143,8 @@ TBT data is the most granular form of market data available, containing every pr
 - **Large order detection** and market imbalance tracking
 - **VWAP calculation** and support/resistance levels
 - **Price cluster analysis** for institutional order detection
+- **OrderBook Imbalance Analysis** at 10, 20, and 50 depth levels with interpretations
+- **Lot Size Display Toggle** for switching between shares and lots view
 
 ### 🚀 **Real-Time Performance**
 - **WebSocket streaming** with millisecond precision TBT data
@@ -141,6 +181,9 @@ REDIRECT_URL=http://127.0.0.1:5000/fyers/callback
 # TBT WebSocket Configuration
 WEBSOCKET_URL=wss://rtsocket-api.fyers.in/versova  # Fyers TBT data feed endpoint
 SYMBOL=NSE:NIFTY25JULFUT                            # Trading symbol for DOM analysis
+
+# Trading Configuration
+LOT_SIZE=75                                         # Lot size for the trading symbol
 
 # Database Configuration
 DATABASE_URL=sqlite:///fyers_depth.db
@@ -296,6 +339,7 @@ test_message             → Connection test message
 | `REDIRECT_URL` | OAuth callback URL | `http://127.0.0.1:5000/fyers/callback` | Your app settings |
 | `WEBSOCKET_URL` | Fyers TBT WebSocket endpoint | `wss://rtsocket-api.fyers.in/versova` | [API Docs](https://myapi.fyers.in/docsv3) |
 | `SYMBOL` | Trading symbol for DOM | `NSE:NIFTY25JULFUT` | Exchange format |
+| `LOT_SIZE` | Lot size for the symbol | `75` | Depends on trading symbol |
 | `DATABASE_URL` | Database connection | `sqlite:///fyers_depth.db` | Local SQLite |
 | `SECRET_KEY` | Flask session key | Change in production | Generate secure key |
 | `API_KEY_PEPPER` | Encryption pepper | Change in production | Generate secure key |
