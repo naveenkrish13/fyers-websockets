@@ -186,6 +186,14 @@
                 </div>
             </div>
             
+            <!-- Lot Size Toggle -->
+            <div class="form-control">
+                <label class="label cursor-pointer gap-2">
+                    <span class="label-text text-xs">Lot Size</span>
+                    <input type="checkbox" class="toggle toggle-sm toggle-primary" id="lot-size-toggle" />
+                </label>
+            </div>
+            
             <div class="dropdown dropdown-end">
                 <label tabindex="0" class="btn btn-ghost btn-circle">
                     <div class="indicator">
@@ -294,7 +302,7 @@
                             <div class="stat-value text-info text-xl" id="vwap-value">--</div>
                         </div>
                         <div class="stat bg-base-200 rounded-box p-2">
-                            <div class="stat-title text-xs">Imbalance</div>
+                            <div class="stat-title text-xs">10L Imbalance</div>
                             <div class="stat-value text-warning text-xl" id="market-imbalance">--</div>
                         </div>
                     </div>
@@ -397,6 +405,85 @@
                                     </tr>
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Order Book Imbalance Card -->
+        <div class="card bg-base-100 shadow-xl col-span-1 lg:col-span-4 mb-4">
+            <div class="card-body p-4">
+                <h2 class="card-title text-lg">Order Book Imbalance Analysis</h2>
+                <div class="divider my-1"></div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- 10 Level Imbalance -->
+                    <div class="stat bg-base-200 rounded-box p-4">
+                        <div class="stat-title text-xs">10 Level Imbalance</div>
+                        <div class="stat-value text-xl" id="imbalance-10-value">--</div>
+                        <div class="stat-desc text-xs" id="imbalance-10-interpretation">--</div>
+                        <div class="mt-2">
+                            <div class="h-2 w-full bg-base-300 rounded-full overflow-hidden">
+                                <div class="h-full bg-gradient-to-r from-success to-error relative">
+                                    <div class="absolute h-full w-1 bg-white" id="imbalance-10-indicator" style="left: 50%"></div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-xs mt-1 opacity-70">
+                                <span>Buy</span>
+                                <span>Neutral</span>
+                                <span>Sell</span>
+                            </div>
+                        </div>
+                        <div class="text-xs mt-2 opacity-70">
+                            <span>Bid: </span><span id="imbalance-10-bid" class="font-mono">--</span>
+                            <span class="ml-2">Ask: </span><span id="imbalance-10-ask" class="font-mono">--</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 20 Level Imbalance -->
+                    <div class="stat bg-base-200 rounded-box p-4">
+                        <div class="stat-title text-xs">20 Level Imbalance</div>
+                        <div class="stat-value text-xl" id="imbalance-20-value">--</div>
+                        <div class="stat-desc text-xs" id="imbalance-20-interpretation">--</div>
+                        <div class="mt-2">
+                            <div class="h-2 w-full bg-base-300 rounded-full overflow-hidden">
+                                <div class="h-full bg-gradient-to-r from-success to-error relative">
+                                    <div class="absolute h-full w-1 bg-white" id="imbalance-20-indicator" style="left: 50%"></div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-xs mt-1 opacity-70">
+                                <span>Buy</span>
+                                <span>Neutral</span>
+                                <span>Sell</span>
+                            </div>
+                        </div>
+                        <div class="text-xs mt-2 opacity-70">
+                            <span>Bid: </span><span id="imbalance-20-bid" class="font-mono">--</span>
+                            <span class="ml-2">Ask: </span><span id="imbalance-20-ask" class="font-mono">--</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 50 Level Imbalance -->
+                    <div class="stat bg-base-200 rounded-box p-4">
+                        <div class="stat-title text-xs">50 Level Imbalance</div>
+                        <div class="stat-value text-xl" id="imbalance-50-value">--</div>
+                        <div class="stat-desc text-xs" id="imbalance-50-interpretation">--</div>
+                        <div class="mt-2">
+                            <div class="h-2 w-full bg-base-300 rounded-full overflow-hidden">
+                                <div class="h-full bg-gradient-to-r from-success to-error relative">
+                                    <div class="absolute h-full w-1 bg-white" id="imbalance-50-indicator" style="left: 50%"></div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-xs mt-1 opacity-70">
+                                <span>Buy</span>
+                                <span>Neutral</span>
+                                <span>Sell</span>
+                            </div>
+                        </div>
+                        <div class="text-xs mt-2 opacity-70">
+                            <span>Bid: </span><span id="imbalance-50-bid" class="font-mono">--</span>
+                            <span class="ml-2">Ask: </span><span id="imbalance-50-ask" class="font-mono">--</span>
                         </div>
                     </div>
                 </div>
@@ -619,6 +706,11 @@
             asks: []
         };
         let updateCounter = 0;
+        const lotSize = {{ lot_size }};
+        let displayLotSize = false;
+        
+        // Debug lot size
+        console.log('🔢 Lot size loaded:', lotSize, typeof lotSize);
         
         function formatPrice(price) {
             return price.toLocaleString('en-IN', {
@@ -636,6 +728,24 @@
         }
         
         function formatQuantity(qty) {
+            if (displayLotSize && lotSize > 0) {
+                console.log(`🔢 Converting qty: ${qty}, lotSize: ${lotSize}, ratio: ${qty/lotSize}`);
+                const completeLots = Math.floor(qty / lotSize);
+                const remainingShares = qty % lotSize;
+                
+                if (remainingShares === 0) {
+                    // Perfect lot multiples
+                    return `${completeLots} lots`;
+                } else {
+                    // Show both lots and remaining shares
+                    if (completeLots > 0) {
+                        return `${completeLots} lots + ${remainingShares}`;
+                    } else {
+                        // Less than one lot, just show shares
+                        return `${qty}`;
+                    }
+                }
+            }
             return qty.toLocaleString('en-IN');
         }
         
@@ -965,8 +1075,12 @@
                 const totalBidQty = depthData.total_bid_qty;
                 const totalAskQty = depthData.total_sell_qty;
                 
-                document.getElementById('total-bid-qty').textContent = formatQuantity(totalBidQty);
-                document.getElementById('total-ask-qty').textContent = formatQuantity(totalAskQty);
+                const totalBidElement = document.getElementById('total-bid-qty');
+                const totalAskElement = document.getElementById('total-ask-qty');
+                totalBidElement.dataset.quantity = totalBidQty;
+                totalAskElement.dataset.quantity = totalAskQty;
+                totalBidElement.textContent = formatQuantity(totalBidQty);
+                totalAskElement.textContent = formatQuantity(totalAskQty);
                 
                 // Update bid-ask ratio
                 const total = totalBidQty + totalAskQty;
@@ -1141,7 +1255,7 @@
                     row.innerHTML = `
                         <td class="text-center text-xs opacity-70">${index + 1}</td>
                         <td class="font-mono ${index === 0 ? 'font-bold price-highlight text-error' : ''}">${formatPrice(level.price)}</td>
-                        <td class="font-mono text-right">${formatQuantity(level.quantity)}</td>
+                        <td class="font-mono text-right" data-quantity="${level.quantity}">${formatQuantity(level.quantity)}</td>
                         <td class="text-center">${level.orders}</td>
                         <td class="w-1/4 relative pr-2">
                             ${showDepthBars ? `<div class="depth-bar bg-error absolute top-1/2 right-0 transform -translate-y-1/2" style="width: ${percentOfMax}%"></div>` : ''}
@@ -1169,7 +1283,7 @@
                     row.innerHTML = `
                         <td class="text-center text-xs opacity-70">${index + 1}</td>
                         <td class="font-mono ${index === 0 ? 'font-bold price-highlight text-success' : ''}">${formatPrice(level.price)}</td>
-                        <td class="font-mono text-right">${formatQuantity(level.quantity)}</td>
+                        <td class="font-mono text-right" data-quantity="${level.quantity}">${formatQuantity(level.quantity)}</td>
                         <td class="text-center">${level.orders}</td>
                         <td class="w-1/4 relative pr-2">
                             ${showDepthBars ? `<div class="depth-bar bg-success absolute top-1/2 right-0 transform -translate-y-1/2" style="width: ${percentOfMax}%"></div>` : ''}
@@ -1180,8 +1294,12 @@
                 });
                 
                 // Update visible quantities
-                document.getElementById('visible-bid-qty').textContent = formatQuantity(visibleBidQty);
-                document.getElementById('visible-ask-qty').textContent = formatQuantity(visibleAskQty);
+                const visibleBidElement = document.getElementById('visible-bid-qty');
+                const visibleAskElement = document.getElementById('visible-ask-qty');
+                visibleBidElement.dataset.quantity = visibleBidQty;
+                visibleAskElement.dataset.quantity = visibleAskQty;
+                visibleBidElement.textContent = formatQuantity(visibleBidQty);
+                visibleAskElement.textContent = formatQuantity(visibleAskQty);
                 
                 // Update order flow metrics
                 const buyerControl = (visibleBidQty / (visibleBidQty + visibleAskQty) * 100).toFixed(0);
@@ -1241,7 +1359,151 @@
             });
             
             updateMarketDepth(data);
+            
+            // Update imbalance display for each symbol
+            Object.entries(data).forEach(([symbol, depthData]) => {
+                if (depthData.imbalance_10 || depthData.imbalance_20 || depthData.imbalance_50) {
+                    updateImbalanceDisplay(depthData);
+                }
+            });
         });
+
+        function updateImbalanceDisplay(imbalanceData) {
+            // Update 10 level imbalance
+            const imbalance10 = imbalanceData.imbalance_10;
+            if (imbalance10) {
+                document.getElementById('imbalance-10-value').textContent = `${imbalance10.imbalance_pct.toFixed(1)}%`;
+                document.getElementById('imbalance-10-interpretation').textContent = imbalance10.interpretation;
+                const bid10Element = document.getElementById('imbalance-10-bid');
+                const ask10Element = document.getElementById('imbalance-10-ask');
+                bid10Element.dataset.quantity = imbalance10.bid_qty;
+                ask10Element.dataset.quantity = imbalance10.ask_qty;
+                bid10Element.textContent = formatQuantity(imbalance10.bid_qty);
+                ask10Element.textContent = formatQuantity(imbalance10.ask_qty);
+                
+                // Update the market imbalance in price levels section
+                document.getElementById('market-imbalance').textContent = `${imbalance10.imbalance_pct.toFixed(1)}%`;
+                
+                // Update indicator position (0-100%, where 50% is neutral)
+                const indicatorPos = 50 + (imbalance10.imbalance_pct / 2); // Scale to 0-100%
+                const clampedPos = Math.max(0, Math.min(100, indicatorPos));
+                document.getElementById('imbalance-10-indicator').style.left = `${clampedPos}%`;
+                
+                // Update value color
+                const valueElement = document.getElementById('imbalance-10-value');
+                if (imbalance10.imbalance_pct > 5) {
+                    valueElement.className = 'stat-value text-success text-xl';
+                } else if (imbalance10.imbalance_pct < -5) {
+                    valueElement.className = 'stat-value text-error text-xl';
+                } else {
+                    valueElement.className = 'stat-value text-warning text-xl';
+                }
+            }
+            
+            // Update 20 level imbalance
+            const imbalance20 = imbalanceData.imbalance_20;
+            if (imbalance20) {
+                document.getElementById('imbalance-20-value').textContent = `${imbalance20.imbalance_pct.toFixed(1)}%`;
+                document.getElementById('imbalance-20-interpretation').textContent = imbalance20.interpretation;
+                const bid20Element = document.getElementById('imbalance-20-bid');
+                const ask20Element = document.getElementById('imbalance-20-ask');
+                bid20Element.dataset.quantity = imbalance20.bid_qty;
+                ask20Element.dataset.quantity = imbalance20.ask_qty;
+                bid20Element.textContent = formatQuantity(imbalance20.bid_qty);
+                ask20Element.textContent = formatQuantity(imbalance20.ask_qty);
+                
+                const indicatorPos = 50 + (imbalance20.imbalance_pct / 2);
+                const clampedPos = Math.max(0, Math.min(100, indicatorPos));
+                document.getElementById('imbalance-20-indicator').style.left = `${clampedPos}%`;
+                
+                const valueElement = document.getElementById('imbalance-20-value');
+                if (imbalance20.imbalance_pct > 5) {
+                    valueElement.className = 'stat-value text-success text-xl';
+                } else if (imbalance20.imbalance_pct < -5) {
+                    valueElement.className = 'stat-value text-error text-xl';
+                } else {
+                    valueElement.className = 'stat-value text-warning text-xl';
+                }
+            }
+            
+            // Update 50 level imbalance
+            const imbalance50 = imbalanceData.imbalance_50;
+            if (imbalance50) {
+                document.getElementById('imbalance-50-value').textContent = `${imbalance50.imbalance_pct.toFixed(1)}%`;
+                document.getElementById('imbalance-50-interpretation').textContent = imbalance50.interpretation;
+                const bid50Element = document.getElementById('imbalance-50-bid');
+                const ask50Element = document.getElementById('imbalance-50-ask');
+                bid50Element.dataset.quantity = imbalance50.bid_qty;
+                ask50Element.dataset.quantity = imbalance50.ask_qty;
+                bid50Element.textContent = formatQuantity(imbalance50.bid_qty);
+                ask50Element.textContent = formatQuantity(imbalance50.ask_qty);
+                
+                const indicatorPos = 50 + (imbalance50.imbalance_pct / 2);
+                const clampedPos = Math.max(0, Math.min(100, indicatorPos));
+                document.getElementById('imbalance-50-indicator').style.left = `${clampedPos}%`;
+                
+                const valueElement = document.getElementById('imbalance-50-value');
+                if (imbalance50.imbalance_pct > 5) {
+                    valueElement.className = 'stat-value text-success text-xl';
+                } else if (imbalance50.imbalance_pct < -5) {
+                    valueElement.className = 'stat-value text-error text-xl';
+                } else {
+                    valueElement.className = 'stat-value text-warning text-xl';
+                }
+            }
+        }
+
+        // Lot size toggle event listener
+        document.getElementById('lot-size-toggle').addEventListener('change', function() {
+            displayLotSize = this.checked;
+            console.log('🔄 Lot size display toggled:', displayLotSize ? 'ON' : 'OFF');
+            
+            // Force refresh of the current DOM display
+            refreshQuantityDisplays();
+        });
+        
+        function refreshQuantityDisplays() {
+            // Refresh visible quantity displays in DOM table
+            document.querySelectorAll('#bids tr, #asks tr').forEach(row => {
+                const qtyCell = row.children[2]; // Quantity is the 3rd column
+                if (qtyCell && qtyCell.dataset.quantity) {
+                    const qty = parseFloat(qtyCell.dataset.quantity);
+                    qtyCell.textContent = formatQuantity(qty);
+                }
+            });
+            
+            // Refresh total quantities
+            const totalBidQtyElement = document.getElementById('total-bid-qty');
+            const totalAskQtyElement = document.getElementById('total-ask-qty');
+            const visibleBidQtyElement = document.getElementById('visible-bid-qty');
+            const visibleAskQtyElement = document.getElementById('visible-ask-qty');
+            
+            if (totalBidQtyElement && totalBidQtyElement.dataset.quantity) {
+                totalBidQtyElement.textContent = formatQuantity(parseFloat(totalBidQtyElement.dataset.quantity));
+            }
+            if (totalAskQtyElement && totalAskQtyElement.dataset.quantity) {
+                totalAskQtyElement.textContent = formatQuantity(parseFloat(totalAskQtyElement.dataset.quantity));
+            }
+            if (visibleBidQtyElement && visibleBidQtyElement.dataset.quantity) {
+                visibleBidQtyElement.textContent = formatQuantity(parseFloat(visibleBidQtyElement.dataset.quantity));
+            }
+            if (visibleAskQtyElement && visibleAskQtyElement.dataset.quantity) {
+                visibleAskQtyElement.textContent = formatQuantity(parseFloat(visibleAskQtyElement.dataset.quantity));
+            }
+            
+            // Refresh imbalance quantities
+            ['10', '20', '50'].forEach(depth => {
+                const bidElement = document.getElementById(`imbalance-${depth}-bid`);
+                const askElement = document.getElementById(`imbalance-${depth}-ask`);
+                
+                if (bidElement && bidElement.dataset.quantity) {
+                    bidElement.textContent = formatQuantity(parseFloat(bidElement.dataset.quantity));
+                }
+                if (askElement && askElement.dataset.quantity) {
+                    askElement.textContent = formatQuantity(parseFloat(askElement.dataset.quantity));
+                }
+            });
+        }
 
         // Theme toggler
         document.querySelector('.theme-controller').addEventListener('change', function(e) {

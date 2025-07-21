@@ -17,6 +17,7 @@ load_dotenv()
 # Configuration
 WEBSOCKET_URL = os.getenv('WEBSOCKET_URL', 'wss://rtsocket-api.fyers.in/versova').strip("'")
 SYMBOL = os.getenv('SYMBOL', 'NSE:NIFTY25JULFUT').strip("'")
+LOT_SIZE = int(os.getenv('LOT_SIZE', '50'))
 
 # Broker Configuration
 BROKER_API_KEY = os.getenv('BROKER_API_KEY', '')
@@ -237,6 +238,56 @@ def get_full_order_book(ticker):
         'askordn': [ask['orders'] for ask in active_asks]
     }
 
+def calculate_order_book_imbalance(bids, asks, depth):
+    """Calculate order book imbalance at specified depth level"""
+    try:
+        # Get quantities up to specified depth
+        bid_qty = sum(bid['qty'] for bid in bids[:depth])
+        ask_qty = sum(ask['qty'] for ask in asks[:depth])
+        
+        # Calculate imbalance ratio
+        total_qty = bid_qty + ask_qty
+        if total_qty > 0:
+            imbalance = (bid_qty - ask_qty) / total_qty
+            imbalance_pct = imbalance * 100
+        else:
+            imbalance = 0
+            imbalance_pct = 0
+        
+        return {
+            'bid_qty': bid_qty,
+            'ask_qty': ask_qty,
+            'imbalance': imbalance,
+            'imbalance_pct': imbalance_pct,
+            'interpretation': interpret_imbalance(imbalance_pct)
+        }
+    except Exception as e:
+        print(f"Error calculating imbalance: {e}")
+        return {
+            'bid_qty': 0,
+            'ask_qty': 0,
+            'imbalance': 0,
+            'imbalance_pct': 0,
+            'interpretation': 'Unknown'
+        }
+
+def interpret_imbalance(imbalance_pct):
+    """Interpret the imbalance percentage"""
+    if imbalance_pct > 30:
+        return "Strong Buying Pressure"
+    elif imbalance_pct > 15:
+        return "Moderate Buying Pressure"
+    elif imbalance_pct > 5:
+        return "Slight Buying Pressure"
+    elif imbalance_pct < -30:
+        return "Strong Selling Pressure"
+    elif imbalance_pct < -15:
+        return "Moderate Selling Pressure"
+    elif imbalance_pct < -5:
+        return "Slight Selling Pressure"
+    else:
+        return "Balanced"
+
 def process_market_depth(message_bytes):
     """Process market depth protobuf message with proper order book management"""
     try:
@@ -312,7 +363,11 @@ def process_market_depth(message_bytes):
                     'bidqty': full_book['bidqty'],
                     'askqty': full_book['askqty'],
                     'bidordn': full_book['bidordn'],
-                    'askordn': full_book['askordn']
+                    'askordn': full_book['askordn'],
+                    # Calculate imbalances at different depths
+                    'imbalance_10': calculate_order_book_imbalance(full_book['bids'], full_book['asks'], 10),
+                    'imbalance_20': calculate_order_book_imbalance(full_book['bids'], full_book['asks'], 20),
+                    'imbalance_50': calculate_order_book_imbalance(full_book['bids'], full_book['asks'], 50)
                 }
                 
                 market_data[ticker] = frontend_data
@@ -526,7 +581,7 @@ def dashboard():
         session.pop('logged_in', None)
         return redirect(url_for('broker_login'))
     
-    return render_template('dashboard.html', symbol=SYMBOL)
+    return render_template('dashboard.html', symbol=SYMBOL, lot_size=LOT_SIZE)
 
 @app.route('/auth/logout')
 def logout():
