@@ -344,6 +344,8 @@ test_message             → Connection test message
 | `SECRET_KEY` | Flask session key | Change in production | Generate secure key |
 | `API_KEY_PEPPER` | Encryption pepper | Change in production | Generate secure key |
 
+You can change the instrument directly from the dashboard using the **Symbol** field. Enter any valid trading symbol to resubscribe the live feed without restarting the server.
+
 ### **TBT Data Processing**
 - **High-Frequency Updates**: Handles 1000+ ticks per second efficiently
 - **Invalid Data Correction**: Automatically handles price=0.0 + quantity>0 anomalies

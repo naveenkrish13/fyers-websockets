@@ -33,6 +33,7 @@ init_db()
 
 # Global order book storage for maintaining full depth
 order_books = {}
+ws_loop = None  # Event loop for WebSocket thread
 
 def update_order_book(ticker, bids, asks, tbq, tsq, timestamp, is_snapshot):
     """Enhanced order book update with guaranteed 50-level depth maintenance"""
@@ -603,13 +604,37 @@ def get_config():
         'app_name': 'Fyers Dom Analyzer'
     }
 
+@app.route('/api/symbol', methods=['POST'])
+def set_symbol():
+    """Update the subscribed trading symbol"""
+    if not session.get('logged_in'):
+        return {'error': 'Unauthorized'}, 401
+
+    data = request.get_json(silent=True) or {}
+    new_symbol = data.get('symbol')
+    if not new_symbol:
+        return {'error': 'Invalid symbol'}, 400
+
+    global SYMBOL
+    SYMBOL = new_symbol.strip()
+
+    # Subscribe to the new symbol on the WebSocket thread
+    if ws_loop:
+        asyncio.run_coroutine_threadsafe(subscribe_symbols(), ws_loop)
+
+    return {'symbol': SYMBOL}
+
 @socketio.on('connect')
 def handle_connect():
     print('Client connected')
     socketio.emit('test_message', {'message': 'Hello from backend!'})
 
 def run_websocket():
-    asyncio.run(websocket_client())
+    """Start the WebSocket client on its own event loop"""
+    global ws_loop
+    ws_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(ws_loop)
+    ws_loop.run_until_complete(websocket_client())
 
 if __name__ == '__main__':
     import threading

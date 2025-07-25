@@ -193,6 +193,12 @@
                     <input type="checkbox" class="toggle toggle-sm toggle-primary" id="lot-size-toggle" />
                 </label>
             </div>
+
+            <!-- Symbol Selector -->
+            <div class="form-control hidden md:block">
+                <input id="symbol-input" type="text" placeholder="NSE:SBIN-EQ" class="input input-xs input-bordered w-36" />
+            </div>
+            <button class="btn btn-primary btn-xs hidden md:inline-flex" id="symbol-btn">Set</button>
             
             <div class="dropdown dropdown-end">
                 <label tabindex="0" class="btn btn-ghost btn-circle">
@@ -1453,9 +1459,24 @@
         document.getElementById('lot-size-toggle').addEventListener('change', function() {
             displayLotSize = this.checked;
             console.log('🔄 Lot size display toggled:', displayLotSize ? 'ON' : 'OFF');
-            
+
             // Force refresh of the current DOM display
             refreshQuantityDisplays();
+        });
+
+        // Symbol update handler
+        document.getElementById('symbol-btn').addEventListener('click', function() {
+            const newSymbol = document.getElementById('symbol-input').value.trim();
+            if (!newSymbol) return;
+            fetch('/api/symbol', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol: newSymbol })
+            }).then(r => r.json()).then(resp => {
+                if (resp.symbol) {
+                    document.getElementById('symbol-display').textContent = resp.symbol;
+                }
+            });
         });
         
         function refreshQuantityDisplays() {
