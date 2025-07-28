@@ -143,6 +143,7 @@ The application calculates orderbook imbalances at three different depth levels 
 - **Large order detection** and market imbalance tracking
 - **VWAP calculation** and support/resistance levels
 - **Price cluster analysis** for institutional order detection
+- **HFT Strategic Run alerts** using rapid order book update analysis
 - **OrderBook Imbalance Analysis** at 10, 20, and 50 depth levels with interpretations
 - **Lot Size Display Toggle** for switching between shares and lots view
 
@@ -410,6 +411,7 @@ CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
 - **Database Queries**: < 1ms average for auth operations
 - **UI Responsiveness**: 60fps animations with real-time updates
 - **WebSocket Throughput**: Handles peak market volume efficiently
+- **Strategic Run Detection**: Flags bursts of 10+ updates within 500ms
 
 ## 🤝 Contributing
 

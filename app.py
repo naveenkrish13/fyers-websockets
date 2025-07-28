@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import msg_pb2
 from database import init_db, authenticate_user, get_auth_token, upsert_auth, find_user_by_username, get_auth_data
 from auth_utils import authenticate_broker, handle_auth_success, mask_api_credential
+from analytics import record_order_book_update, largest_order
 
 # Load environment variables
 load_dotenv()
@@ -334,6 +335,10 @@ def process_market_depth(message_bytes):
             # Get the complete order book for display
             full_book = get_full_order_book(ticker)
             if full_book:
+                hft_run = False
+                if timestamp:
+                    hft_run = record_order_book_update(ticker, timestamp)
+                largest = largest_order({'bids': full_book['bids'], 'asks': full_book['asks']})
                 # Transform data structure to match frontend expectations
                 frontend_data = {
                     'ticker': full_book['ticker'],
@@ -367,7 +372,9 @@ def process_market_depth(message_bytes):
                     # Calculate imbalances at different depths
                     'imbalance_10': calculate_order_book_imbalance(full_book['bids'], full_book['asks'], 10),
                     'imbalance_20': calculate_order_book_imbalance(full_book['bids'], full_book['asks'], 20),
-                    'imbalance_50': calculate_order_book_imbalance(full_book['bids'], full_book['asks'], 50)
+                    'imbalance_50': calculate_order_book_imbalance(full_book['bids'], full_book['asks'], 50),
+                    'largest_order': largest,
+                    'hft_run': hft_run
                 }
                 
                 market_data[ticker] = frontend_data
