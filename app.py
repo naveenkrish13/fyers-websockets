@@ -10,6 +10,14 @@ from dotenv import load_dotenv
 import msg_pb2
 from database import init_db, authenticate_user, get_auth_token, upsert_auth, find_user_by_username, get_auth_data
 from auth_utils import authenticate_broker, handle_auth_success, mask_api_credential
+from analytics import (
+    update_order_flow,
+    record_large_order,
+    detect_spoofing,
+    largest_order,
+    spread_opportunity,
+    order_flow_stats,
+)
 
 # Load environment variables
 load_dotenv()
@@ -75,6 +83,12 @@ def update_order_book(ticker, bids, asks, tbq, tsq, timestamp, is_snapshot):
         level = bid['level']
         if 0 <= level < 50:
             old_data = order_books[ticker]['bids'][level]
+            update_order_flow(old_data['qty'], bid['qty'])
+            if bid['qty'] > old_data['qty']:
+                record_large_order(bid['price'], bid['qty'], 'bid', timestamp)
+            elif bid['qty'] < old_data['qty']:
+                if detect_spoofing(bid['price'], bid['qty'], 'bid', timestamp):
+                    print(f"[SPOOFING] Potential bid spoof at {bid['price']}")
             
             if bid['price'] == 0.0 and bid['qty'] > 0:
                 if old_data['price'] > 0:
@@ -121,6 +135,12 @@ def update_order_book(ticker, bids, asks, tbq, tsq, timestamp, is_snapshot):
         level = ask['level']
         if 0 <= level < 50:
             old_data = order_books[ticker]['asks'][level]
+            update_order_flow(old_data['qty'], ask['qty'])
+            if ask['qty'] > old_data['qty']:
+                record_large_order(ask['price'], ask['qty'], 'ask', timestamp)
+            elif ask['qty'] < old_data['qty']:
+                if detect_spoofing(ask['price'], ask['qty'], 'ask', timestamp):
+                    print(f"[SPOOFING] Potential ask spoof at {ask['price']}")
             
             if ask['price'] == 0.0 and ask['qty'] > 0:
                 if old_data['price'] > 0:
@@ -335,6 +355,11 @@ def process_market_depth(message_bytes):
             # Get the complete order book for display
             full_book = get_full_order_book(ticker)
             if full_book:
+                largest_bid, largest_ask = largest_order(full_book['bids'], full_book['asks'])
+                opp, spread_bps = spread_opportunity(
+                    full_book['bids'][0] if full_book['bids'] else None,
+                    full_book['asks'][0] if full_book['asks'] else None,
+                )
                 # Transform data structure to match frontend expectations
                 frontend_data = {
                     'ticker': full_book['ticker'],
@@ -368,7 +393,12 @@ def process_market_depth(message_bytes):
                     # Calculate imbalances at different depths
                     'imbalance_10': calculate_order_book_imbalance(full_book['bids'], full_book['asks'], 10),
                     'imbalance_20': calculate_order_book_imbalance(full_book['bids'], full_book['asks'], 20),
-                    'imbalance_50': calculate_order_book_imbalance(full_book['bids'], full_book['asks'], 50)
+                    'imbalance_50': calculate_order_book_imbalance(full_book['bids'], full_book['asks'], 50),
+                    'largest_bid': largest_bid,
+                    'largest_ask': largest_ask,
+                    'spread_bps': spread_bps,
+                    'opportunity': opp,
+                    'order_flow': dict(order_flow_stats),
                 }
                 
                 market_data[ticker] = frontend_data

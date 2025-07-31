@@ -141,6 +141,9 @@ The application calculates orderbook imbalances at three different depth levels 
 - **Market sentiment indicators** and price level metrics
 - **Heat mapping** for order concentration visualization
 - **Large order detection** and market imbalance tracking
+- **Spoofing alerts** using rapid cancel detection
+- **Order flow metrics** counting new orders, cancellations and trades
+- **Spread opportunity flag** when bid-ask spread exceeds 0.06 bps
 - **VWAP calculation** and support/resistance levels
 - **Price cluster analysis** for institutional order detection
 - **OrderBook Imbalance Analysis** at 10, 20, and 50 depth levels with interpretations
